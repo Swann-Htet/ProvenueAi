@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Messages | ProvenueAI</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FFF8F5;
+      --primary: #FF7A45;
+      --primary-hover: #E86634;
+      --white: #FFFFFF;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 20px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      --transition: all 200ms ease;
+    }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    /* NAV */
+    .topnav{position:sticky;top:0;z-index:500;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:60px;box-shadow:0 1px 6px rgba(36,50,75,.05); flex-shrink: 0;}
+    .topnav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:18px;font-weight:800;color:var(--text-main);letter-spacing:-.3px}
+    .topnav-logo img{width:32px;height:32px;object-fit:contain}
+    .topnav-logo span{color:var(--primary)}
+    .topnav-links{display:flex;align-items:center;gap:4px}
+    .topnav-links a{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-muted);text-decoration:none;transition:background .15s,color .15s}
+    .topnav-links a:hover{background:var(--bg);color:var(--text-main)}
+    .topnav-links a.active{background:#FEF0EB;color:var(--primary);border:1px solid #F8D4C7}
+    .topnav-links a.outline{border:1.5px solid var(--border)}
+
+    /* MESSENGER LAYOUT */
+    .messenger-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      background: var(--white);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    
+    /* LEFT PANEL */
+    .left-panel {
+      width: 350px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: #FAFAFA;
+    }
+    .left-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .left-header h2 { font-size: 20px; font-weight: 800; color: var(--text-main); }
+    .search-box {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .conv-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .conv-item {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .conv-item:hover { background: #F1F5F9; }
+    .conv-item.active { background: #FEF0EB; border-left: 4px solid var(--primary); padding-left: 16px; }
+    .conv-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: var(--text-muted);
+      margin-right: 16px;
+    }
+    .conv-info { flex: 1; min-width: 0; }
+    .conv-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-property { font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 4px; }
+    .conv-lastmsg { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-unread { background: var(--primary); color: white; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 10px; margin-left: auto; }
+    .conv-online-dot { width: 12px; height: 12px; background: #10B981; border: 2px solid var(--white); border-radius: 50%; position: absolute; bottom: 0; right: 14px; }
+    
+    /* RIGHT PANEL */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--white);
+    }
+    .chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      background: var(--white);
+    }
+    .header-avatar {
+      width: 42px; height: 42px; border-radius: 50%; background: #E2E8F0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 18px; margin-right: 12px;
+    }
+    .header-info h3 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;}
+    .header-property { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+    .btn-view-property { margin-left: auto; background: #F1F5F9; color: var(--text-main); font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 8px; text-decoration: none; transition: background 0.2s; }
+    .btn-view-property:hover { background: #E2E8F0; }
+    .site-badge { background: #E0E7FF; color: #4338CA; font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 800; }
+    .online-status { font-size: 12px; color: #10B981; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .online-dot { width: 8px; height: 8px; background: #10B981; border-radius: 50%; }
+
+    /* MESSAGES */
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #F8FAFC;
+    }
+    .message {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      position: relative;
+      animation: slideUp 0.3s ease forwards;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .message.mine {
+      align-self: flex-end;
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .message.theirs {
+      align-self: flex-start;
+      background: #F1F5F9;
+      border: none;
+      color: var(--text-main);
+      border-bottom-left-radius: 4px;
+    }
+    .msg-time {
+      font-size: 10px;
+      margin-top: 6px;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* INPUT */
+    .chat-input-container {
+      padding: 20px 24px;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .chat-input {
+      flex: 1;
+      background: #F1F5F9;
+      border: none;
+      border-radius: 24px;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: background 0.2s;
+    }
+    .chat-input:focus { background: #E2E8F0; }
+    .btn-icon {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover { background: #F1F5F9; color: var(--text-main); }
+    .btn-send {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-send:hover { background: var(--primary-hover); color: white; }
+    
+    /* TYPING INDICATOR */
+    .typing-indicator {
+      display: flex; align-items: center; gap: 4px; padding: 12px 16px;
+      background: var(--white); border: 1px solid var(--border); border-radius: 18px;
+      width: fit-content; align-self: flex-start;
+      border-bottom-left-radius: 4px; color: var(--text-muted); font-size: 13px; font-weight: 600;
+      animation: slideUp 0.3s ease forwards;
+    }
+    .typing-dot { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: typingBounce 1.4s infinite ease-in-out both; }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+    /* RESPONSIVE */
+    @media(max-width:800px){
+      .left-panel { width: 100%; display: flex; }
+      .right-panel { display: none; }
+      .messenger-container.chat-active .left-panel { display: none; }
+      .messenger-container.chat-active .right-panel { display: flex; }
+      .btn-back-chat { display: block !important; margin-right: 12px; background: transparent; border: none; font-size: 24px; cursor: pointer;}
+    }
+    .btn-back-chat { display: none; }
+  </style>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function TopNav() {
+      return (
+        <header className="topnav">
+          <a href="/" className="topnav-logo">
+            <img src="/logo.png" alt="ProvenueAI" />
+            Provenue<span>AI</span>
+          </a>
+          <nav className="topnav-links">
+            <a href="/">Home</a>
+            <a href="/intake">Start a Report</a>
+            <a href="/reports">My Reports</a>
+            <a href="/messages">Messages</a>
+            <a href="/profile" className="outline">User Profile</a>
+            <a href="/sign-out" className="outline">Sign Out</a>
+          </nav>
+        </header>
+      );
+    }
+
+    function MessagingApp() {
+      const [conversations, setConversations] = useState([]);
+      const [activeConv, setActiveConv] = useState(null);
+      const [messages, setMessages] = useState([]);
+      const [inputText, setInputText] = useState("");
+      const [user, setUser] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [isTyping, setIsTyping] = useState(false);
+      
+      const messagesEndRef = useRef(null);
+      const token = localStorage.getItem('token') || '';
+
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      };
+
+      useEffect(() => {
+        scrollToBottom();
+      }, [messages]);
+
+      useEffect(() => {
+        // Fetch current user
+        fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(r => r.json())
+          .then(data => {
+            if (data.user) setUser(data.user);
+          });
+          
+        fetchConversations();
+        
+        // WebSocket for real-time updates
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'NEW_MESSAGE') {
+              // Trigger a fetch to refresh data
+              fetchConversations(false);
+              // We could manually append, but fetching ensures consistency and is easier with React state closures
+              setMessages(prev => {
+                // If the message is for a different conversation than what's currently loaded
+                if (prev.length > 0 && prev[0].conversation_id !== data.payload.conversation_id) {
+                  return prev;
+                }
+                // To avoid duplicate if we are the sender, check if the msg exists
+                if (!prev.find(m => m.id === data.payload.id)) {
+                  return [...prev, data.payload];
+                }
+                return prev;
+              });
+            }
+          } catch (err) {}
+        };
+
+        return () => ws.close();
+      }, []);
+
+      // If URL has /messages/:id on load, set it active once convs load
+      useEffect(() => {
+        if (conversations.length > 0 && !activeConv) {
+          const parts = window.location.pathname.split('/');
+          const id = parts[parts.length - 1];
+          if (id && id !== 'messages') {
+            const match = conversations.find(c => c.id === id);
+            if (match) handleSelectConv(match);
+          }
+        }
+      }, [conversations]);
+
+      const fetchConversations = async (showLoad = true) => {
+        if (showLoad) setLoading(true);
+        try {
+          const res = await fetch('/api/chat/conversations', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (Array.isArray(data)) setConversations(data);
+        } catch(e) {}
+        if (showLoad) setLoading(false);
+      };
+
+      const fetchMessages = async (convId, scroll = true) => {
+        try {
+          const res = await fetch(`/api/chat/conversations/${convId}/messages`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setMessages(data);
+          }
+        } catch(e) {}
+      };
+
+      const handleSelectConv = (conv) => {
+        window.history.pushState({}, '', `/messages/${conv.id}`);
+        setActiveConv(conv);
+        setMessages([]);
+        fetchMessages(conv.id);
+      };
+
+      const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!inputText.trim() || !activeConv) return;
+        
+        const tempMsg = {
+          id: 'temp-' + Date.now(),
+          conversation_id: activeConv.id,
+          sender_id: user?.id,
+          message: inputText,
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, tempMsg]);
+        setInputText("");
+        
+        try {
+          await fetch(`/api/chat/conversations/${activeConv.id}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ message: tempMsg.message })
+          });
+          fetchMessages(activeConv.id);
+          
+          setIsTyping(true);
+          setTimeout(() => { setIsTyping(false); }, 2000);
+        } catch(e) {}
+      };
+
+      return (
+        <React.Fragment>
+          <TopNav />
+          <div className={`messenger-container ${activeConv ? 'chat-active' : ''}`}>
+            
+            <div className="left-panel">
+              <div className="left-header">
+                <h2>Conversations</h2>
+                <input type="text" className="search-box" placeholder="Search conversations..." />
+              </div>
+              <div className="conv-list">
+                {conversations.length === 0 && !loading && (
+                  <div style={{padding: '24px', textAlign: 'center', color: '#64748b'}}>No conversations yet.</div>
+                )}
+                {conversations.map(c => (
+                  <div key={c.id} className={`conv-item ${activeConv?.id === c.id ? 'active' : ''}`} onClick={() => handleSelectConv(c)}>
+                    <div style={{position: 'relative'}}>
+                      <div className="conv-avatar">
+                        {c.other_user?.name ? c.other_user.name.charAt(0) : '?'}
+                      </div>
+                      <div className="conv-online-dot"></div>
+                    </div>
+                    <div className="conv-info">
+                      <div className="conv-name">{c.other_user?.name || 'Unknown User'}</div>
+                      {c.property?.property_name && <div className="conv-property">{c.property.property_name}</div>}
+                      <div className="conv-lastmsg">Click to view messages</div>
+                    </div>
+                    <div className="conv-unread">1</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="right-panel">
+              {activeConv ? (
+                <React.Fragment>
+                  <div className="chat-header">
+                    <button className="btn-back-chat" onClick={() => setActiveConv(null)}>&larr;</button>
+                    <div className="header-avatar">
+                      {activeConv.other_user?.name ? activeConv.other_user.name.charAt(0) : '?'}
+                    </div>
+                    <div className="header-info">
+                      <h3>{activeConv.other_user?.name || 'Unknown User'} <span className="site-badge">Site</span></h3>
+                      {activeConv.property?.property_name && <div className="header-property">{activeConv.property.property_name}</div>}
+                      <div className="online-status"><div className="online-dot"></div> Online</div>
+                    </div>
+                    {activeConv.property?.id && (
+                      <a href={`/reports?property=${activeConv.property.id}`} className="btn-view-property">View Property</a>
+                    )}
+                  </div>
+                  
+                  <div className="chat-messages">
+                    {messages.map((m, i) => {
+                      const currentUserId = user?.id || 'guest-user';
+                      const isMine = m.sender_id === currentUserId;
+                      const timeStr = new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                      return (
+                        <div key={m.id || i} className={`message ${isMine ? 'mine' : 'theirs'}`}>
+                          {m.message}
+                          <div className="msg-time">{timeStr}</div>
+                        </div>
+                      )
+                    })}
+                    {isTyping && (
+                      <div className="typing-indicator">
+                        Owner is typing <div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  
+                  <form className="chat-input-container" onSubmit={handleSendMessage}>
+                    <button type="button" className="btn-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                    </button>
+                    <input 
+                      type="text" 
+                      className="chat-input" 
+                      placeholder="Type your message..." 
+                      value={inputText}
+                      onChange={e => setInputText(e.target.value)}
+                    />
+                    <button type="button" className="btn-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                    </button>
+                    <button type="submit" className="btn-icon btn-send" disabled={!inputText.trim()}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                  </form>
+                </React.Fragment>
+              ) : (
+                <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#94a3b8', flexDirection:'column', gap:'16px'}}>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                  <p>Select a conversation to start chatting</p>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </React.Fragment>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<MessagingApp />);
+  </script>
+</body>
+</html>

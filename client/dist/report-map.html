@@ -1,0 +1,3193 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Location Analysis | ProvenueAI</title>
+  <meta name="description" content="AI-powered site intelligence map with foot traffic and customer spending data." />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #FDF9F3;
+      --white: #FFFFFF;
+      --orange: #F28C6E;
+      --orange-dk: #E07555;
+      --green: #9AC46D;
+      --green-dk: #7AAA4D;
+      --navy: #24324B;
+      --navy-lt: #4A5E78;
+      --muted: #8A96A8;
+      --border: #E8E8E8;
+      --border-lt: #F0EDE8;
+      --shadow: 0 2px 12px rgba(36, 50, 75, .07);
+      --shadow-md: 0 4px 24px rgba(36, 50, 75, .10);
+      --r: 18px
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--navy);
+      font-size: 14px;
+      line-height: 1.5
+    }
+
+    /* NAV */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 500;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 60px;
+      box-shadow: 0 1px 6px rgba(36, 50, 75, .05)
+    }
+
+    .topnav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -.3px
+    }
+
+    .topnav-logo img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain
+    }
+
+    .topnav-logo span {
+      color: var(--orange)
+    }
+
+    .topnav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .topnav-links a {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy-lt);
+      text-decoration: none;
+      transition: background .15s, color .15s
+    }
+
+    .topnav-links a:hover {
+      background: var(--bg);
+      color: var(--navy)
+    }
+
+    .topnav-links a.active {
+      background: #FEF0EB;
+      color: var(--orange);
+      border: 1px solid #F8D4C7
+    }
+
+    .topnav-links a.outline {
+      border: 1.5px solid var(--border)
+    }
+
+    /* PAGE */
+    .page-wrap {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px 28px 48px
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      gap: 16px
+    }
+
+    .page-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 10px
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: var(--navy-lt);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color .15s, color .15s;
+      width: fit-content
+    }
+
+    .btn-back:hover {
+      border-color: var(--navy-lt);
+      color: var(--navy)
+    }
+
+    .page-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -.4px
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 3px
+    }
+
+    .page-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: var(--navy);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      transition: border-color .15s, background .15s
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--navy-lt);
+      background: var(--bg)
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      border-radius: 10px;
+      border: none;
+      background: var(--orange);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      transition: background .15s
+    }
+
+    .btn-primary:hover {
+      background: var(--orange-dk)
+    }
+
+    /* 3 col */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr 240px;
+      gap: 16px;
+      align-items: start
+    }
+
+    /* CARD */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow)
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 14px
+    }
+
+    /* LEFT */
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px
+    }
+
+    .rec-card {
+      padding: 18px
+    }
+
+    .rec-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 4px
+    }
+
+    .rec-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 12px;
+      line-height: 1.2
+    }
+
+    .rec-score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #F7F4EF;
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 16px
+    }
+
+    .rec-score-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted)
+    }
+
+    .rec-score-val {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--orange);
+      line-height: 1
+    }
+
+    .rec-score-val span {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted)
+    }
+
+    .rec-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-bottom: 18px
+    }
+
+    .rec-metric {
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .rec-metric-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--navy-lt)
+    }
+
+    .rec-metric-val {
+      font-size: 11px;
+      font-weight: 700
+    }
+
+    .vg {
+      color: var(--green-dk)
+    }
+
+    .vo {
+      color: var(--orange)
+    }
+
+    .vm {
+      color: var(--navy-lt)
+    }
+
+    .vb {
+      color: #5BA4D8
+    }
+
+    .stars {
+      color: #F5A623;
+      letter-spacing: -1px;
+      font-size: 12px
+    }
+
+    .btn-view-analysis {
+      width: 100%;
+      padding: 10px 0;
+      border-radius: 10px;
+      border: 1.5px solid var(--orange);
+      background: #FEF0EB;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background .15s, color .15s
+    }
+
+    .btn-view-analysis:hover {
+      background: var(--orange);
+      color: #fff
+    }
+
+    /* Legend */
+    .legend-card {
+      padding: 16px 18px
+    }
+
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 9px
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    .ld-g {
+      background: #5DBD6A
+    }
+
+    .ld-o {
+      background: #F28C6E
+    }
+
+    .ld-b {
+      background: #5BA4D8
+    }
+
+    .ld-gray {
+      background: #BEC5CE
+    }
+
+    .legend-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--navy-lt)
+    }
+
+    /* DATASETS card */
+    .ds-card {
+      padding: 16px 18px
+    }
+
+    .ds-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-lt)
+    }
+
+    .ds-item:last-child {
+      border-bottom: none
+    }
+
+    .ds-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0
+    }
+
+    .ds-icon-ft {
+      background: #FEF0EB;
+      color: var(--orange)
+    }
+
+    .ds-icon-sp {
+      background: #F0FDF4;
+      color: var(--green-dk)
+    }
+
+    .ds-icon-comp {
+      background: #EFF6FF;
+      color: #5BA4D8
+    }
+
+    .ds-icon-oth {
+      background: #F8FAFC;
+      color: var(--muted)
+    }
+
+    .ds-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .ds-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .ds-sub {
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 500
+    }
+
+    .ds-rows {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--navy-lt);
+      flex-shrink: 0
+    }
+
+    /* MAP */
+    .map-wrap {
+      position: relative;
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow)
+    }
+
+    #map {
+      width: 100%;
+      height: 510px;
+      background: #EEE8E0
+    }
+
+    .leaflet-control-attribution {
+      font-size: 9px !important
+    }
+
+    .leaflet-control-zoom {
+      display: none !important
+    }
+
+    .map-controls {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .map-ctrl-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--navy-lt);
+      transition: background .12s, color .12s
+    }
+
+    .map-ctrl-btn:hover {
+      background: var(--bg);
+      color: var(--navy)
+    }
+
+    .leaflet-container {
+      font-family: 'Montserrat', sans-serif !important
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px !important;
+      box-shadow: 0 4px 20px rgba(36, 50, 75, .15) !important;
+      border: 1px solid var(--border) !important
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 16px !important;
+      font-family: 'Montserrat', sans-serif !important
+    }
+
+    .pp-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 3px
+    }
+
+    .pp-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px
+    }
+
+    .pp-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 3px 0;
+      border-bottom: 1px solid var(--border-lt)
+    }
+
+    .pp-row:last-child {
+      border-bottom: none
+    }
+
+    .pp-key {
+      color: var(--muted);
+      font-weight: 600
+    }
+
+    .pp-val {
+      font-weight: 700;
+      color: var(--navy)
+    }
+
+    /* RIGHT FILTERS */
+    .filter-card {
+      padding: 18px
+    }
+
+    .filter-section {
+      margin-bottom: 18px
+    }
+
+    .filter-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block
+    }
+
+    .filter-select {
+      appearance: none;
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 30px 8px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--navy);
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      transition: border-color .15s
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--orange)
+    }
+
+    .filter-range {
+      width: 100%;
+      accent-color: var(--orange);
+      cursor: pointer
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-top: 4px
+    }
+
+    .filter-divider {
+      height: 1px;
+      background: var(--border-lt);
+      margin: 4px 0 18px
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-bottom: 18px
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 9px
+    }
+
+    .checkbox-item input[type=checkbox] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--orange);
+      cursor: pointer;
+      flex-shrink: 0
+    }
+
+    .checkbox-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--navy-lt);
+      cursor: pointer
+    }
+
+    .btn-reset {
+      width: 100%;
+      padding: 9px 0;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      transition: border-color .15s, color .15s
+    }
+
+    .btn-reset:hover {
+      border-color: var(--navy-lt);
+      color: var(--navy)
+    }
+
+    /* BOTTOM CARDS */
+    .bottom-section {
+      margin-top: 20px
+    }
+
+    .bottom-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .loc-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px
+    }
+
+    .loc-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      transition: box-shadow .2s, transform .15s
+    }
+
+    .loc-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px)
+    }
+
+    .loc-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px
+    }
+
+    .rank-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0
+    }
+
+    .rb1 {
+      background: #5DBD6A
+    }
+
+    .rb2 {
+      background: #F28C6E
+    }
+
+    .rb3 {
+      background: #5BA4D8
+    }
+
+    .loc-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.2
+    }
+
+    .loc-district {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 1px
+    }
+
+    .loc-score {
+      margin-left: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end
+    }
+
+    .loc-score-num {
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1
+    }
+
+    .sn1 {
+      color: #5DBD6A
+    }
+
+    .sn2 {
+      color: #F28C6E
+    }
+
+    .sn3 {
+      color: #5BA4D8
+    }
+
+    .loc-score-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted)
+    }
+
+    .loc-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px
+    }
+
+    .loc-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .loc-metric-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted)
+    }
+
+    .loc-metric-val {
+      font-size: 12px;
+      font-weight: 700
+    }
+
+    .loc-card-footer {
+      border-top: 1px solid var(--border-lt);
+      padding-top: 12px;
+      display: flex;
+      gap: 8px
+    }
+
+    .btn-view,
+    .btn-room {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 5px;
+      padding: 7px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .btn-view {
+      border: none;
+      background: var(--orange);
+      color: #fff;
+      transition: background .15s
+    }
+
+    .btn-view:hover {
+      background: var(--orange-dk)
+    }
+
+    .btn-room {
+      background: var(--white);
+      border: 1.5px solid #FF7A45;
+      color: #FF7A45;
+      transition: all 0.25s ease
+    }
+
+    .btn-room:hover {
+      background: #FF7A45;
+      color: var(--white);
+      transform: translateY(-2px)
+    }
+
+    /* DATASET PANEL (bottom right) */
+    .ds-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 20px
+    }
+
+    .ds-detail-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow)
+    }
+
+    .ds-detail-type {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 8px
+    }
+
+    .ds-detail-type.ft {
+      color: var(--orange)
+    }
+
+    .ds-detail-type.sp {
+      color: var(--green-dk)
+    }
+
+    .ds-detail-type.comp {
+      color: #5BA4D8
+    }
+
+    .ds-detail-type.oth {
+      color: var(--muted)
+    }
+
+    .ds-detail-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 4px
+    }
+
+    .ds-detail-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px
+    }
+
+    .ds-rows-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #F1F5F9;
+      color: var(--navy-lt)
+    }
+
+    /* LOADING */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 9999
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      animation: spin .7s linear infinite
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @keyframes pulse-pin {
+      0% {
+        box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.5);
+      }
+
+      70% {
+        box-shadow: 0 0 0 14px rgba(30, 64, 175, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(30, 64, 175, 0);
+      }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted)
+    }
+
+    /* METRIC PILL */
+    .metric-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700
+    }
+
+    .mp-green {
+      background: #DCFCE7;
+      color: #166534
+    }
+
+    .mp-orange {
+      background: #FFEDD5;
+      color: #9A3412
+    }
+
+    .mp-blue {
+      background: #DBEAFE;
+      color: #1E40AF
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 6px
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #D8D2C8;
+      border-radius: 4px
+    }
+
+    /* RESPONSIVE */
+    @media(max-width:1200px) {
+      .main-grid {
+        grid-template-columns: 220px 1fr;
+      }
+
+      .right-panel {
+        display: none
+      }
+    }
+
+    @media(max-width:800px) {
+      .main-grid {
+        grid-template-columns: 1fr
+      }
+
+      .loc-cards {
+        grid-template-columns: 1fr
+      }
+
+      .page-wrap {
+        padding: 16px 14px 40px
+      }
+
+      .topnav {
+        padding: 0 16px
+      }
+    }
+
+    /* AI AGENT PANEL */
+    /* FLOATING AI BUTTON */
+    .ai-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FF7B00, #EA580C);
+      color: white;
+      border: none;
+      box-shadow: 0 10px 25px rgba(234, 88, 12, 0.4);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .ai-fab:hover {
+      transform: scale(1.05);
+      box-shadow: 0 14px 30px rgba(234, 88, 12, 0.5);
+    }
+
+    .ai-fab-dot {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 10px;
+      height: 10px;
+      background: #22C55E;
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+
+    .ai-fab-text {
+      font-size: 16px;
+      font-weight: 800;
+      margin-top: 2px;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .ai-fab-tooltip {
+      position: absolute;
+      top: -36px;
+      background: var(--navy);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .ai-fab:hover .ai-fab-tooltip {
+      opacity: 1;
+    }
+
+    /* AI SLIDING DRAWER */
+    .ai-drawer {
+      font-family: 'Montserrat', sans-serif;
+      position: fixed;
+      top: 0;
+      right: -440px;
+      width: 420px;
+      height: 100%;
+      background: var(--white);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+      z-index: 2100;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      border-top-left-radius: 20px;
+      border-bottom-left-radius: 20px;
+    }
+
+    .ai-drawer.open {
+      right: 0;
+    }
+
+    .ai-drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--white);
+      border-top-left-radius: 20px;
+    }
+
+    .agent-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--navy);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .agent-powered {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .agent-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #22C55E;
+      border-radius: 50%;
+    }
+
+    .ai-drawer-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .ai-drawer-btn:hover {
+      background: #F1F5F9;
+      color: var(--navy);
+    }
+
+    .agent-chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #FAFAFA;
+    }
+
+    .chat-bubble {
+      max-width: 85%;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: var(--orange);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble.ai {
+      align-self: flex-start;
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--navy);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .chat-timestamp {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* SUGGESTED CHIPS */
+    .suggested-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ai-chip {
+      background: var(--white);
+      border: 1px solid var(--border);
+      color: var(--orange);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ai-chip:hover {
+      background: #FFF7ED;
+      border-color: var(--orange);
+    }
+
+    /* ACTION CARD */
+    .action-card {
+      margin-top: 12px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .action-card-title {
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #334155;
+      margin-bottom: 4px;
+    }
+
+    .action-check {
+      color: #22C55E;
+    }
+
+    .agent-input-area {
+      padding: 16px 20px;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+    }
+
+    .agent-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 6px 12px;
+    }
+
+    .agent-input-row:focus-within {
+      border-color: var(--orange);
+      background: var(--white);
+    }
+
+    .agent-input {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .agent-btn-send {
+      background: var(--orange);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .agent-btn-send:hover {
+      background: #EA580C;
+    }
+
+    /* TOP TOOLBAR */
+    .top-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 24px;
+      margin: 0 24px 16px 24px;
+      background: var(--white);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+    }
+
+    .tb-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      background: #F1F5F9;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tb-btn:hover {
+      background: #E2E8F0;
+    }
+
+    .tb-btn.active {
+      background: var(--orange);
+      color: white;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+    }
+
+    .tb-btn.active svg {
+      stroke: white;
+    }
+
+    .tb-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    /* MAP OVERRIDES */
+    #map {
+      width: 100%;
+      height: 600px;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .maplibre-gl-marker {
+      cursor: pointer;
+    }
+
+    /* 3D PINS */
+    .pin-top3 {
+      background: #1E40AF;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      border: 2px solid white;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .pin-top3::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #1E40AF;
+    }
+
+    .pin-cand {
+      background: #DC2626;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .pin-icon {
+      background: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .maplibregl-popup-content, .maplibregl-ctrl, .maplibregl-ctrl-group { font-family: 'Montserrat', sans-serif !important; }
+    .maplibregl-popup-content, .maplibregl-ctrl, .maplibregl-ctrl-group { font-family: 'Montserrat', sans-serif !important; }
+    .top-pin { animation: float-pin 3s ease-in-out infinite; transform-origin: bottom center; }
+    .top-pin:hover { transform: scale(1.15) !important; animation: none; z-index: 1000 !important; }
+    @keyframes float-pin { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  
+    /* Drawing Manager CSS */
+    .drawing-toolbar {
+      position: absolute; display: none; gap: 4px; padding: 6px;
+      background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border: 1px solid var(--border); z-index: 1000;
+    }
+    .drawing-toolbar button {
+      background: transparent; border: none; cursor: pointer; border-radius: 4px;
+      padding: 6px; display: flex; align-items: center; justify-content: center;
+      color: var(--text); transition: all 0.2s;
+    }
+    .drawing-toolbar button:hover { background: var(--bg-hover); color: var(--navy); }
+    .drawing-toolbar button.del-btn:hover { background: #fee2e2; color: #ef4444; }
+    .supplier-label {
+      background: white; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);
+      font-size: 11px; font-weight: 700; color: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transform: translateY(-24px); white-space: nowrap; pointer-events: none;
+    }
+    .supplier-icon {
+      width: 32px; height: 32px; background: white; border-radius: 50%;
+      border: 2px solid #3B82F6; box-shadow: 0 4px 10px rgba(59,130,246,0.3);
+      display: flex; align-items: center; justify-content: center; color: #3B82F6;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .supplier-marker-wrap {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      animation: drop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes drop-in { 0% { transform: translateY(-20px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading AI Location Analysis...</div>
+  </div>
+
+  <header class="topnav">
+    <a href="/" class="topnav-logo">
+      <img src="/logo.png" alt="ProvenueAI" />
+      Provenue<span>AI</span>
+    </a>
+    <nav class="topnav-links">
+      <a href="/">Home</a>
+      <a href="/intake" class="active">Start a Report</a>
+      <a href="/reports">My Reports</a>
+      <a href="/messages">Messages</a>
+      <a href="/profile" class="outline">User Profile</a>
+      <a href="/sign-out" class="outline">Sign Out</a>
+    </nav>
+  </header>
+
+  <main class="page-wrap" id="page-main" style="display:none">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <a href="/reports" class="btn-back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back to My Reports
+        </a>
+        <div>
+          <h1 class="page-title" id="page-title">AI Location Analysis</h1>
+          <p class="page-subtitle" id="page-subtitle">AI analyzed all candidate locations and ranked the best
+            opportunities for your business.</p>
+        </div>
+      </div>
+      <div class="page-header-right">
+        <button class="btn-secondary" onclick="handleExportPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export PDF
+        </button>
+        <button class="btn-primary" onclick="location.href='/intake'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Start New Report
+        </button>
+      </div>
+    </div>
+
+    <!-- 3-column -->
+
+    <!-- Top Toolbar -->
+    <div class="top-toolbar">
+      <button class="tb-btn" id="tb-2d" onclick="setMapView(0)"><svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        </svg> 2D View</button>
+      <button class="tb-btn active" id="tb-3d" onclick="setMapView(60)"><svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+        </svg> 3D View</button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="tb-heat" onclick="toggleLayer('heat')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg> <span>Heatmap</span></button>
+      <button class="tb-btn" id="tb-comp" onclick="toggleLayer('competitors')"><svg width="16" height="16"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg> Competitors</button>
+      <button class="tb-btn" id="tb-sup" onclick="toggleLayer('suppliers')"><svg width="16" height="16"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="9" y1="21" x2="9" y2="9" />
+        </svg> Suppliers</button>
+      <button class="tb-btn" id="tb-pop" onclick="toggleLayer('population')"><svg width="16" height="16"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg> Population</button>
+      <button class="tb-btn" id="tb-spend" onclick="toggleLayer('spending')"><svg width="16" height="16"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg> Spending</button>
+      <button class="tb-btn" id="tb-ai" onclick="toggleLayer('ai')"><svg width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polygon
+            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg> AI Overlay</button>
+    </div>
+
+    <div class="main-grid">
+
+      <!-- LEFT -->
+      <aside class="left-panel">
+        <!-- AI Recommendation -->
+        <div class="card rec-card">
+          <div class="card-title">AI Recommendation</div>
+          <div class="rec-label">Best Location</div>
+          <div class="rec-name" id="best-name">—</div>
+          <div class="rec-score-row">
+            <div class="rec-score-label">Score</div>
+            <div class="rec-score-val" id="best-score">— <span>/ 100</span></div>
+          </div>
+          <div class="rec-metrics" id="rec-metrics-body">
+            <div class="rec-metric"><span class="rec-metric-name">Foot Traffic</span><span class="rec-metric-val vg"
+                id="rm-ft">—</span></div>
+            <div class="rec-metric"><span class="rec-metric-name">Avg Spending</span><span class="rec-metric-val vo"
+                id="rm-sp">—</span></div>
+            <div class="rec-metric"><span class="rec-metric-name">Competition</span><span class="rec-metric-val vg"
+                id="rm-comp">—</span></div>
+            <div class="rec-metric"><span class="rec-metric-name">Rent Level</span><span class="rec-metric-val vm"
+                id="rm-rent">—</span></div>
+            <div class="rec-metric"><span class="rec-metric-name">Expected ROI</span><span class="rec-metric-val vm"
+                id="rm-roi">—</span></div>
+          </div>
+          <button class="btn-view-analysis" onclick="scrollToTop3()">
+            View Top Locations
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Datasets Panel (hidden per user request) -->
+        <div class="card ds-card" style="display: none;">
+          <div class="card-title">Data Sources</div>
+          <div id="ds-list">
+            <div style="font-size:12px;color:var(--muted)">Loading datasets…</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER MAP -->
+      <div class="map-wrap">
+        <div id="map"></div>
+
+        <div class="map-controls">
+          <button class="map-ctrl-btn" title="Zoom in" onclick="pvMap&&pvMap.zoomIn()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button class="map-ctrl-btn" title="Zoom out" onclick="pvMap&&pvMap.zoomOut()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button class="map-ctrl-btn" title="Reset view" id="btn-reset-view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+          </button>
+          <button class="map-ctrl-btn" title="Compass">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <polygon
+                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+          </button>
+        </div>
+
+
+
+      </div>
+
+      <!-- RIGHT FILTERS -->
+      <aside class="card filter-card right-panel">
+        <div class="card-title">Filters</div>
+        <div class="filter-section">
+          <label class="filter-label" for="f-radius">Radius</label>
+          <select class="filter-select" id="f-radius" onchange="applyFilters()">
+            <option value="500">500 m</option>
+            <option value="1000" selected>1 km</option>
+            <option value="2000">2 km</option>
+            <option value="5000">5 km</option>
+            <option value="10000">10 km</option>
+          </select>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label" for="f-budget">Budget Range (THB/mo)</label>
+          <input type="range" class="filter-range" id="f-budget" min="20000" max="300000" step="5000" value="150000"
+            oninput="updateBudget(this.value)" />
+          <div class="range-labels">
+            <span>฿20K</span>
+            <span id="budget-val" style="color:var(--navy);font-weight:700">฿150K</span>
+            <span>฿300K</span>
+          </div>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="filter-section">
+          <label class="filter-label" for="f-pop">Population Density</label>
+          <select class="filter-select" id="f-pop" onchange="applyFilters()">
+            <option value="any" selected>Any</option>
+            <option value="high">High</option>
+            <option value="very_high">Very High</option>
+          </select>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label" for="f-traffic">Foot Traffic</label>
+          <select class="filter-select" id="f-traffic" onchange="applyFilters()">
+            <option value="any" selected>Any</option>
+            <option value="medium">Medium+</option>
+            <option value="high">High</option>
+            <option value="very_high">Very High</option>
+          </select>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label" for="f-transit">Nearby Transit</label>
+          <select class="filter-select" id="f-transit" onchange="applyFilters()">
+            <option value="any" selected>Any</option>
+            <option value="bts">BTS Skytrain</option>
+            <option value="mrt">MRT</option>
+            <option value="both">BTS + MRT</option>
+          </select>
+        </div>
+        <div class="filter-divider"></div>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="cb-heatmap" checked onchange="toggleCheckboxes()" />
+            <label class="checkbox-label" for="cb-heatmap">Show Data Overlay</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="cb-candidates" checked onchange="toggleCheckboxes()" />
+            <label class="checkbox-label" for="cb-candidates">Show Candidate Pins</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="cb-competitors" checked onchange="toggleCheckboxes()" />
+            <label class="checkbox-label" for="cb-competitors">Show Competitors</label>
+          </div>
+        </div>
+        <button class="btn-reset" onclick="resetFilters()">Reset Filters</button>
+      </aside>
+
+    </div>
+
+    <!-- Bottom: Top Locations from report -->
+    <section class="bottom-section" id="top3-section">
+      <h2 class="bottom-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"
+          stroke-linecap="round">
+          <polygon
+            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+        Top Recommended Locations
+      </h2>
+      <div class="loc-cards" id="loc-cards">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">Loading location data...</div>
+      </div>
+    </section>
+
+
+  </main>
+
+  <!-- Floating AI Button -->
+  <button class="ai-fab" onclick="toggleAIDrawer()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round">
+      <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" />
+    </svg>
+    <div class="ai-fab-dot"></div>
+    <span class="ai-fab-text">AI</span>
+    <span class="ai-fab-tooltip">Ask AI</span>
+  </button>
+
+  <!-- AI Chat Drawer -->
+  <div class="ai-drawer" id="ai-drawer">
+    <div class="ai-drawer-header">
+      <div>
+        <div class="agent-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9333EA" stroke-width="2.5"
+            stroke-linecap="round">
+            <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" />
+          </svg>
+          AI Location Assistant
+        </div>
+        <div class="agent-powered">
+          Powered by <span style="font-weight:700; color: #76B900;">NVIDIA NIM</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap: 4px;">
+        <div class="agent-status" style="margin-right: 12px;">
+          <div class="status-dot"></div> Online
+        </div>
+        <button class="ai-drawer-btn" title="New Chat" onclick="clearAgentChat()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+            <path d="M16 21v-5h5" />
+          </svg>
+        </button>
+        <button class="ai-drawer-btn" title="Close" onclick="toggleAIDrawer()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="agent-chat" id="agent-chat">
+      <div id="ai-suggested-chips" class="suggested-chips">
+        <div style="font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 4px;">Suggested Questions
+        </div>
+        <div class="chip-row">
+          <button class="ai-chip" onclick="sendAgentMessage('Where are my competitors?')">Where are my
+            competitors?</button>
+          <button class="ai-chip" onclick="sendAgentMessage('Show suppliers nearby')">Show suppliers nearby</button>
+        </div>
+        <div class="chip-row">
+          <button class="ai-chip" onclick="sendAgentMessage('Best location for premium café')">Best location for premium
+            café</button>
+        </div>
+        <div class="chip-row">
+          <button class="ai-chip" onclick="sendAgentMessage('Compare Location #1 and #3')">Compare Location #1 and
+            #3</button>
+        </div>
+        <div class="chip-row">
+          <button class="ai-chip" onclick="sendAgentMessage('Show delivery area')">Show delivery area</button>
+          <button class="ai-chip" onclick="sendAgentMessage('More options')">More ▾</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="agent-input-area">
+      <div class="agent-input-row">
+        <button class="agent-tool-btn"
+          style="padding: 0 4px; border:none; background:none; cursor:pointer; color:var(--muted);" title="Attach file">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path
+              d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        </button>
+        <input type="text" class="agent-input" id="agent-input" placeholder="Ask anything about your location..."
+          onkeypress="handleAgentKeyPress(event)">
+        <button class="agent-btn-send" onclick="sendAgentMessage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
+      <div style="text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px;">
+        AI can make mistakes. Verify important information.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ── Get report ID from URL ───────────────────────────────
+    var REPORT_ID = location.pathname.replace(/^\/report\//, '').replace(/\/$/, '');
+    var pvMap = null, pvMarkers = [], reportData = null, datasetsData = [];
+
+    // ── Color helpers ──────────────────────────────────────────
+    var RANK_COLORS = ['#5DBD6A', '#F28C6E', '#5BA4D8', '#BEC5CE', '#BEC5CE'];
+    function rankColor(i) { return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)]; }
+    function scoreClass(score) {
+      if (score >= 80) return 'vg';
+      if (score >= 60) return 'vo';
+      return 'vm';
+    }
+    function classifyDataset(type) {
+      var t = (type || '').toLowerCase();
+      if (t.includes('foot')) return { cls: 'ft', label: 'Foot Traffic' };
+      if (t.includes('spend') || t.includes('customer') || t.includes('demo')) return { cls: 'sp', label: 'Spending' };
+      if (t.includes('comp') || t.includes('location')) return { cls: 'comp', label: 'Competition' };
+      return { cls: 'oth', label: 'Data' };
+    }
+
+    // ── Leaflet map icons ──────────────────────────────────────
+    function rankIcon(rank, color) {
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:38px;height:38px;background:' + color + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.22);border:2.5px solid #fff"><span style="transform:rotate(45deg);font-size:14px;font-weight:900;color:#fff;font-family:Montserrat,sans-serif">' + (rank + 1) + '</span></div>',
+        iconSize: [38, 38], iconAnchor: [19, 38], popupAnchor: [0, -42]
+      });
+    }
+    function grayIcon() {
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:16px;height:16px;background:#BEC5CE;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.16)"></div>',
+        iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10]
+      });
+    }
+
+    // ── Build popup HTML for candidate ──────────────────────────
+    function buildPopup(cand, rank, ftDataset, spDataset) {
+      var color = rankColor(rank);
+      var ftRows = getFtDataForLocation(cand, ftDataset);
+      var spRows = getSpDataForLocation(cand, spDataset);
+      var html = '<div class="pp-name">' + (cand.property_name || cand.name || 'Location') + '</div>'
+        + '<div class="pp-sub">' + (cand.address || cand.district || '') + '</div>';
+
+      if (rank < 3) {
+        html += '<div style="margin-bottom:8px"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:' + color + '22;color:' + color + '">Rank #' + (rank + 1) + '</span></div>';
+      }
+
+      html += '<div class="pp-row"><span class="pp-key">Rent</span><span class="pp-val">฿' + (cand.monthly_rent_thb || 0).toLocaleString() + '</span></div>'
+        + '<div class="pp-row"><span class="pp-key">Size</span><span class="pp-val">' + (cand.size_sqm || 'N/A') + ' sqm</span></div>';
+
+      if (ftRows) {
+        html += '<div class="pp-row"><span class="pp-key">Foot Traffic</span><span class="pp-val" style="color:#F28C6E">' + ftRows + '</span></div>';
+      }
+      if (spRows) {
+        html += '<div class="pp-row"><span class="pp-key">Avg Spending</span><span class="pp-val" style="color:#7AAA4D">' + spRows + '</span></div>';
+      }
+      return html;
+    }
+
+    // ── Match dataset rows to a candidate location ─────────────
+    function getFtDataForLocation(cand, ds) {
+      if (!ds || !ds.data || !ds.data.length) return null;
+      var addr = (cand.address || cand.property_name || '').toLowerCase();
+      // Try to find a matching row by zone/area/address
+      var row = ds.data.find(function (r) {
+        var keys = Object.keys(r).map(function (k) { return r[k]; }).join(' ').toLowerCase();
+        return addr.split(' ').some(function (w) { return w.length > 3 && keys.includes(w); });
+      });
+      if (!row) row = ds.data[0]; // fallback to first row
+      // Return a readable value from the row
+      var val = row.foot_traffic || row.footTraffic || row.traffic || row.daily_visitors || row.visitors || row.count || row.volume;
+      if (val !== undefined) return String(val);
+      // Try any numeric field
+      for (var k in row) {
+        if (typeof row[k] === 'number') return String(row[k]);
+      }
+      return null;
+    }
+
+    function getSpDataForLocation(cand, ds) {
+      if (!ds || !ds.data || !ds.data.length) return null;
+      var row = ds.data[0];
+      var val = row.avg_spending || row.avgSpending || row.spending || row.avg_spend || row.income || row.revenue || row.amount;
+      if (val !== undefined) return '฿' + Number(val).toLocaleString();
+      for (var k in row) {
+        if (typeof row[k] === 'number') return '฿' + Number(row[k]).toLocaleString();
+      }
+      return null;
+    }
+
+    // ── Render left panel ──────────────────────────────────────
+    function renderLeftPanel(candidates, report, ftDs, spDs) {
+      if (!candidates || !candidates.length) return;
+      var best = candidates[0];
+      var scores = report && report.site_scores ? report.site_scores : [];
+      var bestScore = scores[0] ? (scores[0].score || 0) : '—';
+      var fin = report && report.financial_forecast ? report.financial_forecast : null;
+
+      document.getElementById('best-name').textContent = best.property_name || best.name || 'Top Location';
+      document.getElementById('best-score').innerHTML = bestScore + ' <span>/ 100</span>';
+
+      // Foot traffic from dataset
+      var ftVal = getFtDataForLocation(best, ftDs);
+      document.getElementById('rm-ft').textContent = ftVal ? ftVal + ' visitors/day' : (scores[0] ? scores[0].dimension_breakdown?.foot_traffic_density : '—') || '—';
+
+      // Spending from dataset
+      var spVal = getSpDataForLocation(best, spDs);
+      document.getElementById('rm-sp').textContent = spVal || '฿850–2,400';
+
+      // Competition
+      var compScore = scores[0] && scores[0].dimension_breakdown ? scores[0].dimension_breakdown.competition_landscape : null;
+      document.getElementById('rm-comp').textContent = compScore ? (compScore >= 70 ? 'Low' : compScore >= 50 ? 'Moderate' : 'High') : 'Low';
+
+      // Rent
+      document.getElementById('rm-rent').textContent = '฿' + (best.monthly_rent_thb || 0).toLocaleString() + '/mo';
+
+      // ROI
+      var payback = fin ? fin.payback_period_months : null;
+      document.getElementById('rm-roi').textContent = payback ? payback + ' months' : '14–20 months';
+    }
+
+    // ── Render bottom top-3 cards ─────────────────────────────
+    function renderTopCards(candidates, scores) {
+      var container = document.getElementById('loc-cards');
+      if (!candidates || !candidates.length) {
+        container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">No candidate locations found for this report.</div>';
+        return;
+      }
+      var rankClasses = ['rb1 sn1', 'rb2 sn2', 'rb3 sn3'];
+      var rbClasses = ['rb1', 'rb2', 'rb3'];
+      var snClasses = ['sn1', 'sn2', 'sn3'];
+
+      container.innerHTML = candidates.slice(0, 3).map(function (c, i) {
+        var score = scores && scores[i] ? scores[i].score : Math.round(90 - i * 4);
+        var dim = scores && scores[i] && scores[i].dimension_breakdown ? scores[i].dimension_breakdown : {};
+        var rbC = rbClasses[i] || 'rb3';
+        var snC = snClasses[i] || 'sn3';
+        var color = rankColor(i);
+        var ftVal = dim.foot_traffic_density || '—';
+        var compVal = dim.competition_landscape || '—';
+        var rentVal = c.monthly_rent_thb ? '฿' + Number(c.monthly_rent_thb).toLocaleString() : '—';
+
+        return '<article class="loc-card">'
+          + '<div class="loc-card-header">'
+          + '<div class="rank-badge ' + rbC + '">' + (i + 1) + '</div>'
+          + '<div><div class="loc-name">' + (c.property_name || c.name || 'Location ' + (i + 1)) + '</div>'
+          + '<div class="loc-district">' + (c.address || c.district || 'Bangkok') + '</div></div>'
+          + '<div class="loc-score"><div class="loc-score-num ' + snC + '">' + score + '</div><div class="loc-score-sub">/ 100</div></div>'
+          + '</div>'
+          + '<div class="loc-metrics">'
+          + '<div class="loc-metric"><div class="loc-metric-label">Foot Traffic</div><div class="loc-metric-val vg">' + ftVal + '</div></div>'
+          + '<div class="loc-metric"><div class="loc-metric-label">Competition</div><div class="loc-metric-val ' + scoreClass(compVal) + '">' + compVal + '</div></div>'
+          + '<div class="loc-metric"><div class="loc-metric-label">Rent/mo</div><div class="loc-metric-val vo">' + rentVal + '</div></div>'
+          + '</div>'
+          + '<div class="loc-card-footer">'
+          + '<button class="btn-view" onclick="location.href=\'/analysis/\'+REPORT_ID+\'?loc=\'+' + i + '">View Full Analysis <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>'
+          + '<button class="btn-room" onclick="location.href=\'/room/' + (c.id || c.property_id || '') + '\'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> View Room Info</button>'
+          + '</div></article>';
+      }).join('');
+    }
+
+    // ── Render datasets section ────────────────────────────────
+    function renderDatasetsSidebar(datasets) {
+      var el = document.getElementById('ds-list');
+      if (!datasets || !datasets.length) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">No datasets available.</div>';
+        return;
+      }
+      el.innerHTML = datasets.slice(0, 5).map(function (d) {
+        var info = classifyDataset(d.type);
+        var iconMap = { ft: 'ds-icon-ft', sp: 'ds-icon-sp', comp: 'ds-icon-comp', oth: 'ds-icon-oth' };
+        var svgMap = {
+          ft: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+          sp: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+          comp: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+          oth: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></ellipse></svg>'
+        };
+        return '<div class="ds-item">'
+          + '<div class="ds-icon ' + iconMap[info.cls] + '">' + (svgMap[info.cls] || svgMap.oth) + '</div>'
+          + '<div class="ds-info"><div class="ds-name">' + escHtml(d.name) + '</div>'
+          + '<div class="ds-sub">' + escHtml(d.type) + ' · ' + d.source_type + '</div></div>'
+          + '<div class="ds-rows">' + d.row_count + ' row' + (d.row_count === 1 ? '' : 's') + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+
+    // ── Map init (MapLibre GL JS + deck.gl) ──────────────────────────────────────
+    var activeLayers = {};
+    var mlMarkers = [];       // MapLibre HTML Marker instances
+    var mockMarkersAdded = false;
+    var tripsAnimation = null;
+
+    
+    // ── AI Drawing Manager ──────────────────────────────────────
+    class DrawingManager {
+      constructor(map) {
+        this.map = map;
+        this.drawings = {}; 
+        this.selectedId = null;
+        this.editModeId = null;
+        this.dragHandle = null;
+        this.toolbarEl = document.createElement('div');
+        this.toolbarEl.className = 'drawing-toolbar';
+        this.toolbarEl.innerHTML = `
+          <button class="del-btn" onclick="window.drawingManager.deleteSelected()" title="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+          <button onclick="window.drawingManager.toggleEdit()" title="Edit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+          <button onclick="window.drawingManager.centerSelected()" title="Center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button onclick="window.drawingManager.showDetails()" title="Details">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        `;
+        document.body.appendChild(this.toolbarEl);
+        this._updateToolbarPos = this.updateToolbarPos.bind(this);
+        this.map.on('move', this._updateToolbarPos);
+      }
+
+      initSources() {
+        this.map.addSource('ai-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }});
+        this.map.addLayer({
+          id: 'ai-poly-fill', type: 'fill', source: 'ai-polygons',
+          paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'] }
+        }, 'road_area_pattern');
+        this.map.addLayer({
+          id: 'ai-poly-line', type: 'line', source: 'ai-polygons',
+          paint: { 'line-color': ['get', 'borderColor'], 'line-width': 2, 'line-opacity': ['get', 'lineOpacity'] }
+        }, 'road_area_pattern');
+
+        this.map.addSource('ai-handles', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }});
+        this.map.addLayer({
+          id: 'ai-poly-handles', type: 'circle', source: 'ai-handles',
+          paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-width': 2, 'circle-stroke-color': '#3B82F6' }
+        });
+
+        this.map.on('click', 'ai-poly-fill', (e) => {
+          if (this.editModeId) return; // don't change selection while editing
+          var feat = e.features[0];
+          this.selectDrawing(feat.properties.id);
+        });
+        
+        this.map.on('click', (e) => {
+          var features = this.map.queryRenderedFeatures(e.point, { layers: ['ai-poly-fill', 'ai-poly-handles'] });
+          if (!features.length && this.selectedId && !this.dragHandle) {
+            this.deselectAll();
+          }
+        });
+
+        // Vertex Dragging Logic
+        this.map.on('mousedown', 'ai-poly-handles', (e) => {
+          e.preventDefault();
+          this.map.getCanvas().style.cursor = 'grabbing';
+          this.dragHandle = {
+            id: e.features[0].properties.drawingId,
+            vertexIdx: e.features[0].properties.vertexIdx
+          };
+        });
+        this.map.on('mousemove', (e) => {
+          if (!this.dragHandle) return;
+          var dr = this.drawings[this.dragHandle.id];
+          if (!dr) return;
+          dr.coords[0][this.dragHandle.vertexIdx] = [e.lngLat.lng, e.lngLat.lat];
+          if (this.dragHandle.vertexIdx === 0) dr.coords[0][dr.coords[0].length - 1] = [e.lngLat.lng, e.lngLat.lat]; // close poly
+          this.updateSources();
+          this.updateHandles();
+          this.updateMarkerPos(this.dragHandle.id);
+        });
+        this.map.on('mouseup', () => {
+          if (this.dragHandle) {
+            this.dragHandle = null;
+            this.map.getCanvas().style.cursor = '';
+          }
+        });
+      }
+
+      generateIrregularPolygon(center, baseRadius, numVertices) {
+        var coords = [];
+        for (var i = 0; i < numVertices; i++) {
+          var angle = (i / numVertices) * 2 * Math.PI;
+          var variance = 0.6 + (Math.random() * 0.8); // 0.6x to 1.4x
+          var r = baseRadius * variance;
+          coords.push([ center[0] + (r / 111320) * Math.cos(angle), center[1] + (r / 110540) * Math.sin(angle) ]);
+        }
+        coords.push(coords[0]); 
+        return [coords];
+      }
+
+      addSupplierArea(center, name, type) {
+        var id = 'draw_' + Date.now() + Math.random().toString(36).substr(2,5);
+        var coords = this.generateIrregularPolygon(center, 400 + Math.random()*400, 7 + Math.floor(Math.random()*5));
+        
+        var icons = {
+          warehouse: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21V9l9-7 9 7v12M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6"/></svg>',
+          factory: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>'
+        };
+
+        var el = document.createElement('div');
+        el.className = 'supplier-marker-wrap';
+        el.innerHTML = `
+          <div class="supplier-label">${name}</div>
+          <div class="supplier-icon">${icons[type] || icons.warehouse}</div>
+        `;
+        var marker = new maplibregl.Marker({ element: el }).setLngLat(center).addTo(this.map);
+
+        this.drawings[id] = {
+          id: id, type: 'supplier', coords: coords, marker: marker, 
+          color: '#87CEEB', borderColor: '#3B82F6', opacity: 0, lineOpacity: 0
+        };
+        
+        this.updateSources();
+        this.animateIn(id);
+      }
+
+      animateIn(id) {
+        var dr = this.drawings[id];
+        if(!dr) return;
+        var step = 0;
+        var anim = setInterval(() => {
+          step++;
+          if(step <= 10) dr.lineOpacity = step / 10;
+          else if(step <= 20) dr.opacity = ((step-10)/10) * 0.25;
+          this.updateSources();
+          if(step >= 20) clearInterval(anim);
+        }, 30);
+      }
+
+      updateSources() {
+        var features = Object.values(this.drawings).map(d => ({
+          type: 'Feature', geometry: { type: 'Polygon', coordinates: d.coords },
+          properties: { id: d.id, color: d.color, borderColor: d.borderColor, opacity: d.opacity, lineOpacity: d.lineOpacity }
+        }));
+        if(this.map.getSource('ai-polygons')) {
+          this.map.getSource('ai-polygons').setData({ type: 'FeatureCollection', features: features });
+        }
+      }
+
+      updateHandles() {
+        if (!this.editModeId || !this.drawings[this.editModeId]) {
+          this.map.getSource('ai-handles').setData({ type: 'FeatureCollection', features: [] });
+          return;
+        }
+        var dr = this.drawings[this.editModeId];
+        var handles = dr.coords[0].slice(0, -1).map((pt, i) => ({
+          type: 'Feature', geometry: { type: 'Point', coordinates: pt },
+          properties: { drawingId: dr.id, vertexIdx: i }
+        }));
+        this.map.getSource('ai-handles').setData({ type: 'FeatureCollection', features: handles });
+      }
+
+      updateMarkerPos(id) {
+        var dr = this.drawings[id];
+        if(!dr) return;
+        var pts = dr.coords[0];
+        var cx = 0, cy = 0;
+        for(var i=0; i<pts.length-1; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+        var center = [cx/(pts.length-1), cy/(pts.length-1)];
+        dr.marker.setLngLat(center);
+        if(this.selectedId === id) this.updateToolbarPos();
+      }
+
+      selectDrawing(id) {
+        this.selectedId = id;
+        this.editModeId = null;
+        this.toolbarEl.style.display = 'flex';
+        this.updateHandles();
+        this.updateToolbarPos();
+      }
+
+      deselectAll() {
+        this.selectedId = null;
+        this.editModeId = null;
+        this.toolbarEl.style.display = 'none';
+        this.updateHandles();
+      }
+
+      updateToolbarPos() {
+        if (!this.selectedId || !this.drawings[this.selectedId]) return;
+        var dr = this.drawings[this.selectedId];
+        var pos = this.map.project(dr.marker.getLngLat());
+        this.toolbarEl.style.left = (pos.x - 70) + 'px';
+        this.toolbarEl.style.top = (pos.y + 25) + 'px';
+      }
+
+      deleteSelected() {
+        if(!this.selectedId) return;
+        this.drawings[this.selectedId].marker.remove();
+        delete this.drawings[this.selectedId];
+        this.deselectAll();
+        this.updateSources();
+      }
+
+      toggleEdit() {
+        if(this.editModeId) { this.editModeId = null; } 
+        else { this.editModeId = this.selectedId; }
+        this.updateHandles();
+      }
+
+      centerSelected() {
+        if(!this.selectedId) return;
+        this.map.flyTo({ center: this.drawings[this.selectedId].marker.getLngLat(), zoom: 15, duration: 1000 });
+      }
+
+      showDetails() {
+        alert("Supplier Details\nDistance: 2.1 km\nETA: 15 mins\nCoverage: High");
+      }
+      
+      clearAll() {
+        Object.values(this.drawings).forEach(d => d.marker.remove());
+        this.drawings = {};
+        this.deselectAll();
+        this.updateSources();
+      }
+    }
+    // ────────────────────────────────────────────────────────────
+
+    window._pvInitMap3D = function (candidates, ftDs, spDs) {
+      pvMap = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        center: [100.5018, 13.7563],
+        zoom: 12,
+        pitch: 55,
+        bearing: -15,
+        antialias: true
+      });
+
+      pvMap.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      
+      pvMap.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+      window.drawingManager = new DrawingManager(pvMap);
+
+
+      
+      pvMap.on('load', function () {
+        window.drawingManager.initSources();
+
+        // Real 3D Buildings from OpenStreetMap vector tiles
+        pvMap.addLayer({
+          'id': '3d-buildings',
+          'source': 'openmaptiles',
+          'source-layer': 'building',
+          'type': 'fill-extrusion',
+          'minzoom': 13,
+          'paint': {
+            'fill-extrusion-color': [
+              'match',
+              ['get', 'class'],
+              'commercial', '#4F46E5',
+              'office', '#3B82F6',
+              'retail', '#06B6D4',
+              'hospital', '#EF4444',
+              'school', '#F59E0B',
+              'hotel', '#8B5CF6',
+              'industrial', '#6B7280',
+              'residential', '#9CA3AF',
+              '#D1D5DB'
+            ],
+            'fill-extrusion-height': [
+              'interpolate', ['linear'], ['zoom'],
+              13, 0,
+              14, ['get', 'render_height']
+            ],
+            'fill-extrusion-base': [
+              'interpolate', ['linear'], ['zoom'],
+              13, 0,
+              14, ['get', 'render_min_height']
+            ],
+            'fill-extrusion-opacity': 0.85
+          }
+        });
+
+        // Real Heatmap Layer
+        var heatFeatures = (candidates || []).filter(function(c) { return c.lat && c.lng; }).map(function(c) {
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [c.lng, c.lat] }
+          };
+        });
+        pvMap.addSource('candidate-heatmap-source', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: heatFeatures }
+        });
+        pvMap.addLayer({
+          id: 'heatmap-layer',
+          type: 'heatmap',
+          source: 'candidate-heatmap-source',
+          layout: { visibility: 'none' },
+          paint: {
+            'heatmap-weight': 1,
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 1, 15, 3],
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0,0,255,0)',
+              0.2, '#3B82F6',
+              0.4, '#10B981',
+              0.6, '#F59E0B',
+              0.8, '#F97316',
+              1, '#EF4444'
+            ],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 11, 20, 15, 80],
+            'heatmap-opacity': 0.7
+          }
+        }, 'road_area_pattern');
+
+        // Draw candidate markers
+        if (candidates && candidates.length) {
+          placeMarkers(candidates, ftDs, spDs);
+          var validCands = candidates.filter(function (c) { return c.lat && c.lng; });
+          if (validCands.length) {
+            var lngs = validCands.map(function (c) { return c.lng; });
+            var lats = validCands.map(function (c) { return c.lat; });
+            var minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+            var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+            pvMap.fitBounds([[minLng - 0.01, minLat - 0.01], [maxLng + 0.01, maxLat + 0.01]], {
+              padding: 60, duration: 1500
+            });
+          }
+        }
+
+        // Set up deck.gl overlay
+        setupDeckOverlay(candidates);
+
+        // Spending circles source
+        pvMap.addSource('spending-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        pvMap.addLayer({
+          id: 'spending-layer', type: 'circle', source: 'spending-source',
+          layout: { visibility: 'none' },
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['get', 'radius'], 0, 5, 500, 40],
+            'circle-color': '#7AAA4D', 'circle-opacity': 0.5, 'circle-stroke-width': 1,
+            'circle-stroke-color': '#4d7a2d'
+          }
+        });
+
+        // Population heatmap source (different gradient)
+        pvMap.addSource('pop-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        pvMap.addLayer({
+          id: 'pop-layer', type: 'heatmap', source: 'pop-source',
+          layout: { visibility: 'none' },
+          paint: {
+            'heatmap-weight': 1, 'heatmap-intensity': 2,
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(178,226,226,0)', 0.4, 'rgb(102,194,164)',
+              0.7, 'rgb(44,162,95)', 1, 'rgb(0,109,44)'
+            ],
+            'heatmap-radius': 20, 'heatmap-opacity': 0.7
+          }
+        });
+
+        // Supplier points source
+        pvMap.addSource('supplier-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        pvMap.addLayer({
+          id: 'supplier-points', type: 'symbol', source: 'supplier-source',
+          layout: { 
+            visibility: 'none',
+            'text-field': [
+              'match', ['get', 'category'],
+              'warehouse', '📦',
+              'industrial', '🏭',
+              'distribution', '🏭',
+              '🏭'
+            ],
+            'text-size': 20
+          }
+        });
+
+        // Traffic flow lines source
+        pvMap.addSource('traffic-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        pvMap.addLayer({
+          id: 'traffic-layer', type: 'line', source: 'traffic-source',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': ['case', ['<', ['get', 'congestion'], 30], '#22c55e',
+              ['<', ['get', 'congestion'], 60], '#f59e0b', '#ef4444'],
+            'line-width': ['interpolate', ['linear'], ['get', 'congestion'], 0, 2, 100, 6],
+            'line-opacity': 0.8
+          }
+        });
+
+        // Competitor clusters source
+        pvMap.addSource('competitor-source', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          cluster: true, clusterMaxZoom: 14, clusterRadius: 50
+        });
+        pvMap.addLayer({
+          id: 'competitor-clusters', type: 'circle', source: 'competitor-source',
+          layout: { visibility: 'none' },
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': ['step', ['get', 'point_count'], '#9333ea', 5, '#7e22ce', 10, '#6b21a8'],
+            'circle-radius': ['step', ['get', 'point_count'], 20, 5, 28, 10, 36]
+          }
+        });
+        pvMap.addLayer({
+          id: 'competitor-count', type: 'symbol', source: 'competitor-source',
+          layout: { visibility: 'none', 'text-field': '{point_count_abbreviated}', 'text-size': 12 },
+          filter: ['has', 'point_count'],
+          paint: { 'text-color': '#ffffff' }
+        });
+        pvMap.addLayer({
+          id: 'competitor-points', type: 'symbol', source: 'competitor-source',
+          layout: { 
+            visibility: 'none',
+            'text-field': [
+              'match', ['get', 'category'],
+              'cafe', '☕',
+              'restaurant', '🍽️',
+              'fast_food', '🍔',
+              'retail', '🛍️',
+              '🏬'
+            ],
+            'text-size': 20
+          },
+          filter: ['!', ['has', 'point_count']]
+        });
+
+        // AI drawing layer (for AI drawing engine)
+        
+        
+        
+
+        // Generate and inject mock data
+        if (candidates && candidates.length > 0) {
+          injectMockData(candidates[0]);
+        }
+      });
+
+      // Reset view
+      document.getElementById('btn-reset-view').onclick = function () {
+        if (!candidates || !candidates.length) {
+          pvMap.flyTo({ center: [100.5018, 13.7563], zoom: 12, pitch: 55, bearing: -15, duration: 1200 });
+          return;
+        }
+        var validCands = candidates.filter(function (c) { return c.lat && c.lng; });
+        if (validCands.length) {
+          var lngs = validCands.map(function (c) { return c.lng; });
+          var lats = validCands.map(function (c) { return c.lat; });
+          pvMap.fitBounds([
+            [Math.min.apply(null, lngs) - 0.01, Math.min.apply(null, lats) - 0.01],
+            [Math.max.apply(null, lngs) + 0.01, Math.max.apply(null, lats) + 0.01]
+          ], { padding: 60, duration: 1200, pitch: 55, bearing: -15 });
+        }
+      };
+    }
+
+    function addSyntheticBuildings(candidates) {
+      if (!pvMap.getSource) return;
+      // Deterministic building grid around candidate locations
+      var center = (candidates && candidates.length && candidates[0].lat)
+        ? [candidates[0].lng, candidates[0].lat]
+        : [100.5018, 13.7563];
+
+      var features = [];
+      var gridSize = 8;
+      var step = 0.003;
+      for (var i = -gridSize; i <= gridSize; i++) {
+        for (var j = -gridSize; j <= gridSize; j++) {
+          var lat = center[1] + i * step + (Math.random() - 0.5) * step * 0.4;
+          var lng = center[0] + j * step + (Math.random() - 0.5) * step * 0.4;
+          var w = step * (0.3 + Math.random() * 0.4);
+          var h = step * (0.3 + Math.random() * 0.4);
+          var height = 5 + Math.random() * 100;
+          features.push({
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [lng, lat], [lng + w, lat], [lng + w, lat + h], [lng, lat + h], [lng, lat]
+              ]]
+            },
+            properties: { height: height, base_height: 0, color: '#d4d0c8' }
+          });
+        }
+      }
+
+      pvMap.addSource('buildings-3d', { type: 'geojson', data: { type: 'FeatureCollection', features: features } });
+      pvMap.addLayer({
+        id: '3d-buildings',
+        type: 'fill-extrusion',
+        source: 'buildings-3d',
+        paint: {
+          'fill-extrusion-color': ['get', 'color'],
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'base_height'],
+          'fill-extrusion-opacity': 0.85
+        }
+      });
+    }
+
+    function placeMarkers(candidates, ftDs, spDs) {
+      candidates.forEach(function (cand, i) {
+        if (!cand.lat || !cand.lng) return;
+        
+        var isTop3 = i < 3;
+        var color = isTop3 ? (i < 2 ? '#22C55E' : '#FACC15') : '#EF4444';
+        var halo = isTop3 ? (i < 2 ? 'rgba(34,197,94,0.7)' : 'rgba(250,204,21,0.7)') : 'rgba(239,68,68,0.4)';
+        var size = isTop3 ? (i < 2 ? 44 : 40) : 30;
+
+        var el = document.createElement('div');
+        el.className = 'pin-wrapper'; // Let MapLibre handle transform here
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.cursor = 'pointer';
+        
+        var innerHtml = `
+          <div class="${isTop3 ? 'top-pin' : 'candidate-pin'}" style="width:100%; height:100%; transition: transform 0.2s;">
+            <svg viewBox="0 0 24 24" style="width:100%; height:100%; filter: drop-shadow(0 0 10px ${halo}); overflow:visible;">
+              <path d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7z" fill="${color}" stroke="white" stroke-width="1.5"/>
+              ${isTop3 ? `<text x="12" y="9.5" fill="white" font-size="7" font-weight="bold" font-family="Montserrat, sans-serif" text-anchor="middle" dominant-baseline="middle">${i+1}</text>` : ''}
+            </svg>
+          </div>
+        `;
+        el.innerHTML = innerHtml;
+
+        var popup = new maplibregl.Popup({ offset: 25, closeButton: true, maxWidth: '260px' })
+          .setHTML(buildPopup(cand, i, ftDs, spDs));
+
+        var marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([cand.lng, cand.lat])
+          .setPopup(popup)
+          .addTo(pvMap);
+
+        el.addEventListener('mouseenter', function () { 
+          el.querySelector('div').style.transform = 'scale(1.15)';
+          el.style.zIndex = 1000;
+          if (!marker.getPopup().isOpen()) marker.togglePopup();
+        });
+        el.addEventListener('mouseleave', function () { 
+          el.querySelector('div').style.transform = '';
+          el.style.zIndex = '';
+          if (marker.getPopup().isOpen()) marker.togglePopup();
+        });
+        el.addEventListener('click', function () {
+          pvMap.flyTo({ center: [cand.lng, cand.lat], zoom: 16, pitch: 60, bearing: -10, duration: 1200 });
+        });
+        pvMarkers.push({ m: marker, cand: cand, idx: i });
+      });
+    }
+
+    var deckOverlay;
+    function setupDeckOverlay(candidates) {
+      if (typeof deck === 'undefined') return;
+      deckOverlay = new deck.MapboxOverlay({ layers: [] });
+      pvMap.addControl(deckOverlay);
+    }
+
+    async function fetchRealCompetitors(center) {
+      if (competitorMarkers.length > 0) return; // already fetched
+      try {
+        var query = '[out:json];node(around:1500,'+center[1]+','+center[0]+')["amenity"~"cafe|restaurant|fast_food"];out;';
+        var res = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(query)
+        });
+        var data = await res.json();
+        
+        var elements = data.elements.slice(0, 7); // Show exactly 7 competitors
+        
+        var compIcons = [
+          // Coffee
+          '<g transform="translate(8.5, 6) scale(0.3)" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" x2="6" y1="2" y2="4" /><line x1="10" x2="10" y1="2" y2="4" /><line x1="14" x2="14" y1="2" y2="4" /></g>',
+          // Shopping Bag
+          '<g transform="translate(8.5, 6) scale(0.3)" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></g>',
+          // Utensils
+          '<g transform="translate(8.5, 6) scale(0.3)" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /></g>',
+          // Storefront
+          '<g transform="translate(8.5, 6) scale(0.3)" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></g>'
+        ];
+
+        elements.forEach(function(el) {
+          var randomIcon = compIcons[Math.floor(Math.random() * compIcons.length)];
+          var elDiv = document.createElement('div');
+          elDiv.className = 'pin-wrapper competitor-wrapper';
+          elDiv.style.width = '30px';
+          elDiv.style.height = '30px';
+          elDiv.style.cursor = 'pointer';
+          elDiv.style.display = document.getElementById('cb-competitors').checked ? 'block' : 'none';
+          
+          elDiv.innerHTML = `
+            <div class="candidate-pin" style="width:100%; height:100%; transition: transform 0.2s;">
+              <svg viewBox="0 0 24 24" style="width:100%; height:100%; filter: drop-shadow(0 0 10px rgba(168,85,247,0.4)); overflow:visible;">
+                <path d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7z" fill="#A855F7" stroke="white" stroke-width="1.5"/>
+                ${randomIcon}
+              </svg>
+            </div>
+          `;
+          
+          var popup = new maplibregl.Popup({ offset: 25, closeButton: true, maxWidth: '200px' })
+            .setHTML('<div style="padding:10px;font-family:Montserrat,sans-serif;"><div style="font-weight:700;margin-bottom:4px;color:#1e293b;">'+(el.tags.name || 'Competitor')+'</div><div style="font-size:12px;color:#64748b;text-transform:capitalize;">'+(el.tags.amenity || 'competitor')+'</div></div>');
+
+          var marker = new maplibregl.Marker({ element: elDiv, anchor: 'bottom' })
+            .setLngLat([el.lon, el.lat])
+            .setPopup(popup)
+            .addTo(pvMap);
+
+          elDiv.addEventListener('mouseenter', function () { 
+            elDiv.querySelector('div').style.transform = 'scale(1.15)';
+            elDiv.style.zIndex = 1000;
+            if (!marker.getPopup().isOpen()) marker.togglePopup();
+          });
+          elDiv.addEventListener('mouseleave', function () { 
+            elDiv.querySelector('div').style.transform = '';
+            elDiv.style.zIndex = '';
+            if (marker.getPopup().isOpen()) marker.togglePopup();
+          });
+
+          competitorMarkers.push(marker);
+        });
+      } catch(e) { console.error('Failed to fetch competitors', e); }
+    }
+
+    async function fetchRealSuppliers(center) {
+      if (!pvMap.getSource('supplier-source')) return;
+      if (pvMap.getSource('supplier-source')._data.features.length > 0) return;
+      try {
+        var query = '[out:json];(way(around:3000,'+center[1]+','+center[0]+')["landuse"="industrial"];node(around:3000,'+center[1]+','+center[0]+')["building"="warehouse"];);out geom;';
+        var res = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(query)
+        });
+        var data = await res.json();
+        var features = [];
+        data.elements.forEach(function(el) {
+          if (el.type === 'node') {
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [el.lon, el.lat] },
+              properties: { name: el.tags.name || 'Warehouse', category: 'warehouse' }
+            });
+          } else if (el.type === 'way' && el.geometry) {
+            var coords = el.geometry.map(function(g) { return [g.lon, g.lat]; });
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Polygon', coordinates: [coords] },
+              properties: { name: el.tags.name || 'Industrial Area', category: 'industrial' }
+            });
+          }
+        });
+        pvMap.getSource('supplier-source').setData({ type: 'FeatureCollection', features: features });
+      } catch(e) { console.error('Failed to fetch suppliers', e); }
+    }
+
+    // ── Map view helpers ──────────────────────────────────────────────────────────
+    function setMapView(pitch) {
+      if (!pvMap) return;
+      var is3d = pitch > 0;
+      document.getElementById('tb-2d').classList.toggle('active', !is3d);
+      document.getElementById('tb-3d').classList.toggle('active', is3d);
+      pvMap.easeTo({ pitch: pitch, bearing: is3d ? -15 : 0, duration: 900 });
+      var vis = is3d ? 'visible' : 'none';
+      if (pvMap.getLayer('3d-buildings')) pvMap.setLayoutProperty('3d-buildings', 'visibility', vis);
+    }
+
+    function toggleLayer(layer) {
+      if (!pvMap) return;
+      var btn = document.getElementById('tb-' + (layer === 'competitors' ? 'comp' : layer === 'suppliers' ? 'sup' : layer === 'population' ? 'pop' : layer === 'spending' ? 'spend' : layer));
+      var isActive = activeLayers[layer];
+      activeLayers[layer] = !isActive;
+      if (btn) btn.classList.toggle('active', !isActive);
+
+      var newVis = !isActive ? 'visible' : 'none';
+
+      if (layer === 'heat') {
+        pvMap.setLayoutProperty('heatmap-layer', 'visibility', newVis);
+      } else if (layer === 'traffic') {
+        pvMap.setLayoutProperty('traffic-layer', 'visibility', newVis);
+      } else if (layer === 'competitors') {
+        if (!isActive) fetchRealCompetitors([pvMap.getCenter().lng, pvMap.getCenter().lat]);
+        ['competitor-clusters', 'competitor-count', 'competitor-points'].forEach(function (l) {
+          pvMap.setLayoutProperty(l, 'visibility', newVis);
+        });
+      } else if (layer === 'suppliers') {
+        if (!isActive) fetchRealSuppliers([pvMap.getCenter().lng, pvMap.getCenter().lat]);
+        pvMap.setLayoutProperty('supplier-points', 'visibility', newVis);
+        document.querySelectorAll('[data-supplier="1"]').forEach(function (el) {
+          el.style.display = newVis === 'visible' ? 'flex' : 'none';
+        });
+      } else if (layer === 'population') {
+        pvMap.setLayoutProperty('pop-layer', 'visibility', newVis);
+      } else if (layer === 'spending') {
+        pvMap.setLayoutProperty('spending-layer', 'visibility', newVis);
+      } else if (layer === 'ai') {
+        // AI Overlay: toggle pulsing animation on top 3 markers
+        document.querySelectorAll('.pin-top3').forEach(function (el) {
+          el.style.animation = !isActive ? 'pulse-pin 1.5s infinite' : '';
+        });
+      }
+    }
+
+    // flyToCandidate defined inside initMap section
+
+    var heatmapLayer = null;
+    var spendingLayer = null;
+    var cachedDatasets = {}; // To store downloaded Excel base64
+
+    async function loadAndParseExcel(datasetId) {
+      if (cachedDatasets[datasetId]) return cachedDatasets[datasetId];
+      try {
+        var res = await fetch('/api/public/datasets/' + datasetId);
+        if (!res.ok) return null;
+        var ds = await res.json();
+        if (!ds.data || !ds.data.length || !ds.data[0].file_data) return null;
+        var base64 = ds.data[0].file_data.split(',')[1];
+        var workbook = XLSX.read(base64, { type: 'base64' });
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var json = XLSX.utils.sheet_to_json(sheet);
+        cachedDatasets[datasetId] = json;
+        return json;
+      } catch (e) { console.error('Failed to parse excel:', e); return null; }
+    }
+
+    var bkkFallbackMap = {
+      "Bang Kapi": [13.75, 100.65], "Bang Na": [13.8996, 100.5106], "Bueng Kum": [13.7712, 100.3515],
+      "Khan Na Yao": [13.6034, 100.4684], "Khlong Sam Wa": [13.7081, 100.644], "Khlong Toei": [13.8907, 100.552],
+      "Lat Krabang": [13.8118, 100.3633], "Lat Phrao": [13.618, 100.4287], "Min Buri": [13.6695, 100.6266],
+      "Nong Chok": [13.8706, 100.5892], "Phra Khanong": [13.8475, 100.386], "Prawet": [13.6432, 100.3946],
+      "Saphan Sung": [13.6374, 100.599], "Suan Luang": [13.8408, 100.6194], "Wang Thonglang": [13.8755, 100.4178],
+      "Bang Rak": [13.6769, 100.369], "Bangkok Noi": [13.6142, 100.5636], "Bangkok Yai": [13.8039, 100.64],
+      "Din Daeng": [13.8935, 100.4562], "Dusit": [13.7164, 100.3538], "Huai Khwang": [13.6018, 100.5231],
+      "Khlong San": [13.7626, 100.6495], "Pathum Wan": [13.9, 100.498], "Phaya Thai": [13.7586, 100.3502],
+      "Phra Nakhon": [13.6012, 100.4808], "Pom Prap Sattru Phai": [13.7203, 100.647], "Ratchathewi": [13.8946, 100.54],
+      "Samphanthawong": [13.8001, 100.3586], "Sathon": [13.6125, 100.44], "Thon Buri": [13.6804, 100.6329],
+      "Watthana": [13.8776, 100.5788], "Bang Khen": [13.8376, 100.3783], "Bang Sue": [13.6348, 100.404],
+      "Chatuchak": [13.6461, 100.6082], "Don Mueang": [13.8505, 100.6113], "Lak Si": [13.8682, 100.4076],
+      "Sai Mai": [13.6662, 100.3756], "Bang Bon": [13.62, 100.5748], "Bang Khae": [13.8154, 100.635],
+      "Bang Kho Laem": [13.8893, 100.4443], "Bang Khun Thian": [13.7043, 100.3571], "Bang Phlat": [13.6043, 100.5355],
+      "Chom Thong": [13.7751, 100.6479], "Nong Khaem": [13.8993, 100.4854], "Phasi Charoen": [13.746, 100.3501],
+      "Rat Burana": [13.6001, 100.4934], "Taling Chan": [13.7328, 100.649], "Thawi Watthana": [13.8974, 100.5277],
+      "Thung Khru": [13.7881, 100.3549], "Yan Nawa": [13.608, 100.4518]
+    };
+
+    async function applyFilters() { }
+    
+    function toggleCheckboxes() {
+      if (!pvMap) return;
+      
+      var showHeat = document.getElementById('cb-heatmap').checked;
+      var showCands = document.getElementById('cb-candidates').checked;
+      var showComps = document.getElementById('cb-competitors').checked;
+      
+      if (pvMap.getLayer('heatmap-layer')) {
+        pvMap.setLayoutProperty('heatmap-layer', 'visibility', showHeat ? 'visible' : 'none');
+      }
+      
+      pvMarkers.forEach(function(m) {
+        if (m.idx >= 3) {
+          m.m.getElement().style.display = showCands ? 'block' : 'none';
+        }
+      });
+      
+      competitorMarkers.forEach(function(m) {
+        m.getElement().style.display = showComps ? 'block' : 'none';
+      });
+    }
+
+
+    function updateBudget(v) { document.getElementById('budget-val').textContent = '฿' + Math.round(v / 1000) + 'K'; }
+    function resetFilters() {
+      document.getElementById('f-radius').value = '1000';
+      document.getElementById('f-budget').value = '150000';
+      document.getElementById('budget-val').textContent = '฿150K';
+      document.getElementById('f-pop').value = 'any';
+      document.getElementById('f-traffic').value = 'any';
+      document.getElementById('f-transit').value = 'any';
+      document.getElementById('cb-heatmap').checked = true;
+      document.getElementById('cb-competitors').checked = true;
+      applyFilters();
+    }
+
+    function scrollToTop3() { document.getElementById('top3-section').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    function handleExportPDF() { alert('Generating PDF report with map, scores, and financial projections…'); }
+    function escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ── Main loader ─────────────────────────────────────────────
+    async function loadAll() {
+      try {
+        // Fetch report and datasets in parallel
+        var [reportRes, dsRes] = await Promise.all([
+          fetch('/api/public/reports/' + REPORT_ID),
+          fetch('/api/public/datasets')
+        ]);
+
+        if (!reportRes.ok) {
+          var err = await reportRes.json().catch(function () { return { error: 'Failed' }; });
+          throw new Error(err.error || 'Report not found (' + reportRes.status + ')');
+        }
+
+        reportData = await reportRes.json();
+        var datasets = dsRes.ok ? await dsRes.json() : [];
+        datasetsData = datasets;
+
+        var profile = reportData.profile || {};
+        var report = reportData.report || {};
+        var candidates = reportData.candidates || [];
+        var scores = report.site_scores || [];
+
+        // --- MOCKUP INJECTION FOR DEMO ---
+        if (candidates.length === 0) {
+          candidates = [
+            {
+              id: 'mock-cand-1',
+              property_name: 'Corner retail, Soi Thonglor 5',
+              address: 'Thonglor (Sukhumvit 55)',
+              lat: 13.731,
+              lng: 100.582,
+              monthly_rent_thb: 88000,
+              size_sqm: 120,
+              owner_id: 'b895d316-3b1c-4aea-9e5e-75e6134d2f9e'
+            },
+            {
+              id: 'mock-cand-2',
+              property_name: 'Mall Kiosk, EmQuartier',
+              address: 'Sukhumvit Road',
+              lat: 13.7315,
+              lng: 100.5695,
+              monthly_rent_thb: 150000,
+              size_sqm: 45,
+              owner_id: 'b895d316-3b1c-4aea-9e5e-75e6134d2f9e'
+            },
+            {
+              id: 'mock-cand-3',
+              property_name: 'Standalone Shop, Ekkamai',
+              address: 'Sukhumvit 63',
+              lat: 13.728,
+              lng: 100.585,
+              monthly_rent_thb: 110000,
+              size_sqm: 90,
+              owner_id: 'b895d316-3b1c-4aea-9e5e-75e6134d2f9e'
+            }
+          ];
+          scores = [
+            { score: 82, dimension_breakdown: { foot_traffic_density: 'High', competition_landscape: 75 } },
+            { score: 78, dimension_breakdown: { foot_traffic_density: 'Very High', competition_landscape: 85 } },
+            { score: 65, dimension_breakdown: { foot_traffic_density: 'Moderate', competition_landscape: 40 } }
+          ];
+
+          if (!report) report = {};
+          report.financial_forecast = {
+            payback_period_months: 6
+          };
+
+          // Force profile location label if empty for demo
+          if (!profile.location || !profile.location.label) {
+            profile.location = profile.location || {};
+            profile.location.label = 'Thonglor (Sukhumvit 55)';
+          }
+        }
+        // --- END MOCKUP ---
+
+        // Generate additional mock candidates to reach 25
+        function generateMockCandidates(cands) {
+          if (cands.length === 0 || cands.length >= 25) return cands;
+          var center = cands[0]; 
+          var mockCount = 25 - cands.length;
+          var newCands = cands.slice();
+          for (var i = 0; i < mockCount; i++) {
+            var angle = Math.random() * Math.PI * 2;
+            var radius = 0.002 + Math.random() * 0.013; 
+            newCands.push({
+              id: 'mock-cand-gen-' + i,
+              is_mock: true,
+              lat: center.lat + Math.sin(angle) * radius,
+              lng: center.lng + Math.cos(angle) * radius,
+              property_name: 'Mock Candidate ' + (i + 1)
+            });
+          }
+          return newCands;
+        }
+        candidates = generateMockCandidates(candidates);
+
+        // Update page title
+        if (profile.project_name) {
+          document.getElementById('page-title').textContent = profile.project_name + ' — AI Location Analysis';
+          document.title = profile.project_name + ' | AI Location Analysis | ProvenueAI';
+        }
+        if (profile.location && profile.location.label) {
+          document.getElementById('page-subtitle').textContent =
+            'Analysis for ' + profile.location.label + ' — ' + candidates.length + ' candidate location' + (candidates.length === 1 ? '' : 's') + ' evaluated.';
+        }
+
+        // Find foot traffic and spending datasets
+        var ftDs = datasets.find(function (d) { return (d.type || '').toLowerCase().includes('foot'); });
+        var spDs = datasets.find(function (d) {
+          var t = (d.type || '').toLowerCase();
+          return t.includes('spend') || t.includes('customer') || t.includes('demo');
+        });
+
+        // Show page
+        document.getElementById('loading-overlay').style.display = 'none';
+        document.getElementById('page-main').style.display = 'block';
+
+        // Render everything
+        renderLeftPanel(candidates, report, ftDs, spDs);
+        renderTopCards(candidates, scores);
+        renderDatasetsSidebar(datasets);
+        initMap(candidates, ftDs, spDs);
+        applyFilters();
+
+      } catch (e) {
+        document.getElementById('loading-overlay').innerHTML =
+          '<div style="text-align:center;padding:40px">'
+          + '<div style="font-size:40px;margin-bottom:16px">⚠️</div>'
+          + '<div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">Could not load report</div>'
+          + '<div style="font-size:13px;color:var(--muted);margin-bottom:24px">' + escHtml(e.message) + '</div>'
+          + '<a href="/reports" style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;text-decoration:none;font-family:Montserrat,sans-serif">Back to My Reports</a>'
+          + '</div>';
+      }
+    }
+
+    // --- AI AGENT & MOCK DATA LOGIC ---
+    var mockCandidates = [];
+    var competitorMarkers = [];
+    var supplierPolygons = [];
+    var agentChat = document.getElementById('agent-chat');
+
+    function generateMockData(center) {
+      // Legacy stub — handled by injectMockData() inside initMap()
+    }
+
+    function toggleTopLocations() {
+      if (!pvMap) return;
+      var cb = document.getElementById('cb-top-locations');
+      pvMarkers.forEach(function (entry) {
+        entry.m.getElement().style.display = (cb && cb.checked) ? '' : 'none';
+      });
+    }
+
+    function appendChatMessage(text, sender, actions) {
+      const div = document.createElement('div');
+      div.className = 'chat-bubble ' + sender;
+      let html = text;
+      
+      if (actions && actions.length > 0) {
+        const actionItems = actions.map(function(a) {
+          let desc = a.type;
+          if (a.type === 'toggle_layer') desc = (a.visible ? 'Show ' : 'Hide ') + a.layer;
+          else if (a.type === 'add_markers') desc = 'Show ' + a.category;
+          else if (a.type === 'draw_buffer') desc = 'Draw radius';
+          else if (a.type === 'highlight_location') desc = 'Highlight location';
+          else if (a.type === 'clear_layers') desc = 'Clear map overlays';
+          return `
+          <div class="action-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            ${desc}
+          </div>`;
+        }).join('');
+        
+        html += `
+          <div class="action-card">
+            <div class="action-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Map Actions
+            </div>
+            ${actionItems}
+          </div>
+        `;
+      }
+      
+      html += `<div class="chat-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>`;
+      
+      div.innerHTML = html;
+      agentChat.appendChild(div);
+      agentChat.scrollTop = agentChat.scrollHeight;
+    }
+
+    function handleAgentKeyPress(e) {
+      if (e.key === 'Enter') sendAgentMessage();
+    }
+
+    function toggleAIDrawer() {
+      const drawer = document.getElementById('ai-drawer');
+      if (drawer) drawer.classList.toggle('open');
+    }
+
+    async function sendAgentMessage(overrideMsg) {
+      const input = document.getElementById('agent-input');
+      const msg = (overrideMsg || input.value).trim();
+      if (!msg) return;
+      input.value = '';
+      appendChatMessage(msg, 'user');
+      
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'chat-bubble ai';
+      const loadingTexts = ['Analyzing map...', 'Searching competitors...', 'Finding suppliers...', 'Drawing polygons...'];
+      typingDiv.textContent = loadingTexts[Math.floor(Math.random() * loadingTexts.length)];
+      agentChat.appendChild(typingDiv);
+      agentChat.scrollTop = agentChat.scrollHeight;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = localStorage.getItem('pv_token') || urlParams.get('token') || '';
+      const pathParts = window.location.pathname.split('/');
+      const reportId = pathParts[pathParts.length - 1];
+
+      try {
+        const res = await fetch(`/api/reports/${reportId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ message: msg, mapState: { center: pvMap ? pvMap.getCenter() : {lat:0, lng:0}, radius_m: 1000 } })
+        });
+        
+        if (!res.ok) {
+          throw new Error(`API Error: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        if(agentChat.contains(typingDiv)) agentChat.removeChild(typingDiv);
+        
+        appendChatMessage(data.reply || 'Sorry, I encountered an error.', 'ai', data.actions);
+        
+        if (data.actions && Array.isArray(data.actions)) {
+          data.actions.forEach(executeAgentAction);
+        }
+      } catch (err) {
+        if(agentChat.contains(typingDiv)) agentChat.removeChild(typingDiv);
+        appendChatMessage('Error connecting to AI backend. Are you logged in?', 'ai');
+      }
+    }
+
+    
+
+    
+    function executeAgentAction(action) {
+      if (!pvMap || !window.drawingManager) return;
+      try {
+        if (action.type === 'toggle_layer') {
+          var layerMap = {
+            competitors: 'competitors', suppliers: 'suppliers',
+            spending: 'spending', demand: 'heat', traffic: 'traffic',
+            population: 'population', 'ai_overlay': 'ai'
+          };
+          var layerKey = layerMap[action.layer] || action.layer;
+          if (activeLayers[layerKey] !== true) {
+            toggleLayer(layerKey);
+          }
+        }
+        else if (action.type === 'add_markers') {
+          if (action.category === 'competitor') {
+            activeLayers['competitors'] = false;
+            toggleLayer('competitors');
+          } else if (action.category === 'supplier') {
+            activeLayers['suppliers'] = false;
+            toggleLayer('suppliers');
+          }
+        }
+        else if (action.type === 'highlight_location') {
+          var idx = parseInt(action.id) - 1;
+          var entry = pvMarkers[idx];
+          if (entry) {
+            pvMap.flyTo({ center: [entry.cand.lng, entry.cand.lat], zoom: 16, pitch: 60, bearing: -10, duration: 1200 });
+          }
+        }
+        else if (action.type === 'draw_polygon') {
+          var center = [pvMap.getCenter().lng, pvMap.getCenter().lat];
+          window.drawingManager.addSupplierArea(center, "Supplier Area", "warehouse");
+          pvMap.flyTo({ center: center, zoom: 14, duration: 1000 });
+        }
+        else if (action.type === 'draw_buffer') {
+          var center = [pvMap.getCenter().lng, pvMap.getCenter().lat];
+          var types = ['warehouse', 'factory'];
+          var names = ['Supplier A', 'Distribution Center'];
+          window.drawingManager.addSupplierArea([center[0] - 0.01, center[1] + 0.005], names[0], types[0]);
+          setTimeout(() => window.drawingManager.addSupplierArea([center[0] + 0.015, center[1] - 0.005], names[1], types[1]), 300);
+          pvMap.flyTo({ center: center, zoom: 13, duration: 1200 });
+        }
+        else if (action.type === 'zoom_to') {
+          pvMap.easeTo({ zoom: (pvMap.getZoom() || 12) + 2, duration: 800 });
+        }
+        else if (action.type === 'clear_layers') {
+          window.drawingManager.clearAll();
+        }
+      } catch (e) { console.error('Error executing map action', e); }
+    }
+
+
+    function initMap(candidates, ftDs, spDs) {
+      window._pvInitMap3D(candidates, ftDs, spDs);
+    }
+
+
+    loadAll();
+  </script>
+</body>
+
+</html>

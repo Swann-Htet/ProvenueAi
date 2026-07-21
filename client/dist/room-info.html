@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room Information | ProvenueAI</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  
+  <!-- Pannellum for Panorama Viewer -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel -->
+  <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    /* ── RESET & BASE ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FFF8F5;
+      --primary: #FF7A45;
+      --primary-hover: #E86634;
+      --white: #FFFFFF;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 20px;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      --shadow-hover: 0 15px 40px rgba(0, 0, 0, 0.08);
+      --transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    
+    /* NAV */
+    .topnav{position:sticky;top:0;z-index:500;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:60px;box-shadow:0 1px 6px rgba(36,50,75,.05)}
+    .topnav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:18px;font-weight:800;color:var(--text-main);letter-spacing:-.3px}
+    .topnav-logo img{width:32px;height:32px;object-fit:contain}
+    .topnav-logo span{color:var(--primary)}
+    .topnav-links{display:flex;align-items:center;gap:4px}
+    .topnav-links a{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-muted);text-decoration:none;transition:background .15s,color .15s}
+    .topnav-links a:hover{background:var(--bg);color:var(--text-main)}
+    .topnav-links a.active{background:#FEF0EB;color:var(--primary);border:1px solid #F8D4C7}
+    .topnav-links a.outline{border:1.5px solid var(--border)}
+    
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+      animation: fadeIn 300ms ease-out forwards;
+    }
+    .modal-content {
+      background: var(--white); border-radius: var(--radius); padding: 40px; text-align: center;
+      box-shadow: var(--shadow-hover); max-width: 400px; width: 90%;
+      animation: scaleBounce 500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      position: relative; overflow: hidden;
+    }
+    @keyframes scaleBounce {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .avatars-container {
+      display: flex; justify-content: center; align-items: center; gap: 16px; margin-bottom: 24px;
+      position: relative;
+    }
+    .avatar {
+      width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+      border: 4px solid var(--white); box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700; color: var(--primary);
+    }
+    .avatar.left { transform: translateX(-50px) rotate(-10deg); opacity: 0; }
+    .avatar.right { transform: translateX(50px) rotate(10deg); opacity: 0; animation-delay: 100ms; }
+    @keyframes slideIn {
+      100% { transform: translateX(0) rotate(0); opacity: 1; }
+    }
+    .match-icon {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+      background: var(--primary); color: white; width: 40px; height: 40px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      border: 4px solid var(--white); z-index: 10;
+      animation: popIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) 400ms forwards;
+    }
+    @keyframes popIn { 100% { transform: translate(-50%, -50%) scale(1); } }
+    .modal-title { font-size: 24px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+    .modal-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 400ms ease-out forwards; }
+    .animate-slide-up { animation: slideUp 500ms ease-out forwards; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+
+    
+    /* BACK BUTTON */
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+      border-radius: 10px; border: 1.5px solid var(--border); background: var(--white);
+      color: var(--primary); font-size: 13px; font-weight: 700; cursor: pointer;
+      text-decoration: none; transition: border-color .15s, color .15s, background .15s;
+      width: fit-content; margin-bottom: 24px;
+    }
+    .btn-back:hover { border-color: var(--primary); background: #FEF0EB; }
+
+    /* NEW BUTTONS */
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 24px; border-radius: 16px; border: none; background: var(--primary);
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: 'Montserrat', sans-serif; transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255, 122, 69, 0.3); }
+    
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: var(--white); border-radius: 24px; padding: 48px 40px; text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-width: 420px; width: 90%;
+      position: relative; overflow: hidden;
+    }
+    .avatars-container {
+      display: flex; justify-content: center; align-items: center; margin-bottom: 32px;
+      position: relative; height: 120px;
+    }
+    .avatar {
+      width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+      border: 4px solid var(--white); box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 800; color: var(--primary); position: absolute;
+    }
+    .match-icon {
+      position: absolute; background: white; color: #1F2937; width: 56px; height: 56px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      border: 3px solid var(--primary); z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .professional-match {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      font-size: 16px; font-weight: 700; color: #1F2937; margin-bottom: 32px;
+    }
+    .modal-title { font-size: 28px; font-weight: 900; color: var(--text-main); margin-bottom: 8px; letter-spacing: -0.5px; }
+    .modal-subtitle { font-size: 15px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+    .modal-match-text { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 32px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 12px; }
+    .sparkle { position: absolute; border-radius: 50%; background: #FFD700; pointer-events: none; }
+
+    /* ── LAYOUT ── */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+    .header {
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+    
+    .layout-grid {
+      display: grid;
+      grid-template-columns: 40% 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    /* ── PANORAMA ── */
+    .panorama-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+    .panorama-aspect {
+      position: relative;
+      width: 100%;
+      padding-top: 100%; /* 1:1 Aspect Ratio */
+    }
+    .panorama-container {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+    }
+    .panorama-badge {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* ── GALLERY ── */
+    .gallery-wrap {
+      margin-top: 24px;
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 12px;
+      scrollbar-width: thin;
+    }
+    .gallery-wrap::-webkit-scrollbar { height: 6px; }
+    .gallery-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .gallery-item {
+      width: 100px;
+      height: 75px;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: var(--transition);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .gallery-item img {
+      width: 100%; height: 100%; object-fit: cover;
+      transition: var(--transition);
+    }
+    .gallery-item:hover img { transform: scale(1.05); }
+    .gallery-item.active { border-color: var(--primary); }
+
+    /* ── INFO CARD ── */
+    .info-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+    .info-header { margin-bottom: 24px; }
+    .info-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    .status-badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #15803d;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-item-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .info-item-val {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    
+    .description-sec { margin-bottom: 32px; }
+    .description-sec h3, .amenities-sec h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .description-sec p {
+      color: #475569;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    
+    .amenities-sec { margin-bottom: 32px; }
+    .amenities-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .amenity-chip {
+      background: #f1f5f9;
+      color: #334155;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .amenity-chip svg { color: var(--primary); }
+
+    /* ── SUMMARY STATS ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--primary);
+    }
+    .stat-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: #fff7ed;
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stat-val { font-size: 18px; font-weight: 800; }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+
+    /* ── ACTIONS ── */
+    .actions-wrap {
+      display: flex;
+      gap: 16px;
+    }
+    .btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transition);
+      flex: 1;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 14px rgba(255, 122, 69, 0.3);
+    }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 122, 69, 0.4); }
+    .btn-secondary {
+      background: var(--white);
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+    .btn-secondary:hover { background: var(--primary); color: #fff; transform: translateY(-2px); }
+
+    /* Skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 400% 100%;
+      animation: skeleton-loading 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes skeleton-loading {
+      0% { background-position: 100% 50%; }
+      100% { background-position: 0 50%; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1024px) {
+      .layout-grid { grid-template-columns: 1fr; }
+      .left-column { max-width: 700px; margin: 0 auto 32px; width: 100%; }
+    }
+    @media (max-width: 640px) {
+      .container { padding: 24px 16px; }
+      .header h1 { font-size: 24px; }
+      .info-card { padding: 20px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .info-grid { grid-template-columns: 1fr; }
+      .actions-wrap { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    
+    const { useState, useEffect, useRef } = React;
+
+    function TopNav() {
+      return (
+        <header className="topnav">
+          <a href="/" className="topnav-logo">
+            <img src="/logo.png" alt="ProvenueAI" />
+            Provenue<span>AI</span>
+          </a>
+          <nav className="topnav-links">
+            <a href="/">Home</a>
+            <a href="/intake">Start a Report</a>
+            <a href="/reports">My Reports</a>
+            <a href="/messages">Messages</a>
+            <a href="/profile" className="outline">User Profile</a>
+            <a href="/sign-out" className="outline">Sign Out</a>
+          </nav>
+        </header>
+      );
+    }
+
+
+    const { motion, AnimatePresence } = window.Motion;
+
+    function Confetti() {
+      const [particles, setParticles] = useState([]);
+      useEffect(() => {
+        const colors = ['#FF7A45', '#4ADE80', '#FCD34D', '#60A5FA', '#A78BFA'];
+        const p = Array.from({length: 40}).map((_, i) => ({
+          id: i,
+          x: (Math.random() - 0.5) * window.innerWidth * 0.8,
+          y: (Math.random() - 0.5) * window.innerHeight * 0.8,
+          rotation: Math.random() * 360,
+          scale: Math.random() * 0.5 + 0.5,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        }));
+        setParticles(p);
+      }, []);
+
+      return (
+        <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0}}>
+          {particles.map(p => (
+            <motion.div
+              key={p.id}
+              initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+              animate={{ x: p.x, y: p.y, opacity: 0, scale: p.scale, rotate: p.rotation }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              style={{
+                position: 'absolute', top: '50%', left: '50%', width: 10, height: 10, 
+                backgroundColor: p.color, borderRadius: Math.random() > 0.5 ? '50%' : '0'
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    function MatchModal({ owner, user, propertyId, onClose }) {
+      const [creating, setCreating] = useState(false);
+
+      const startChatting = async () => {
+        setCreating(true);
+        try {
+          const res = await fetch('/api/chat/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ property_id: propertyId, owner_id: owner.id })
+          });
+          const data = await res.json();
+          if (data.id) {
+            window.location.href = `/messages/${data.id}`;
+          } else {
+            alert('Error creating chat: ' + (data.error || 'Unknown'));
+            setCreating(false);
+          }
+        } catch (e) {
+          alert('Error starting chat');
+          setCreating(false);
+        }
+      };
+
+      return (
+        <motion.div 
+          className="modal-overlay"
+          initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+          animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          
+          <motion.div 
+            className="modal-content"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.1 }}
+          >
+            <div className="avatars-container">
+              <motion.div 
+                className="avatar"
+                initial={{ x: -100, rotate: -20, opacity: 0 }}
+                animate={{ x: -40, rotate: -5, opacity: 1 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 200, delay: 0.2, duration: 0.8 }}
+                style={{ zIndex: 1 }}
+              >
+                {user?.name ? user.name.charAt(0) : 'U'}
+              </motion.div>
+              
+              <motion.div 
+                className="avatar"
+                initial={{ x: 100, rotate: 20, opacity: 0 }}
+                animate={{ x: 40, rotate: 5, opacity: 1 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 200, delay: 0.2, duration: 0.8 }}
+                style={{ zIndex: 1 }}
+              >
+                {owner?.name ? owner.name.charAt(0) : 'O'}
+              </motion.div>
+
+              <motion.div 
+                className="match-icon"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 250, delay: 0.8 }}
+                style={{ zIndex: 2 }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-handshake"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-7.3 7.3a1 1 0 0 0 0 1.42l.5.5a1 1 0 0 0 1.42 0Z"/><path d="m20 5.6 1.9 1.9a1 1 0 0 1 0 1.4l-1.9 1.9"/><path d="m3 11 1.83-1.83a3 3 0 0 1 4.24 0l1.93 1.93"/><path d="m9 11-1 1"/><path d="m13 15-1 1"/></svg>
+              </motion.div>
+            </div>
+            
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }}>
+              <div className="modal-title">Great Match Found!</div>
+              <div className="modal-subtitle">We've found a suitable business location.<br/>You can now connect directly with the site owner.</div>
+              <div className="professional-match">
+                <span>Your Business</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF7A45" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-handshake"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-7.3 7.3a1 1 0 0 0 0 1.42l.5.5a1 1 0 0 0 1.42 0Z"/><path d="m20 5.6 1.9 1.9a1 1 0 0 1 0 1.4l-1.9 1.9"/><path d="m3 11 1.83-1.83a3 3 0 0 1 4.24 0l1.93 1.93"/><path d="m9 11-1 1"/><path d="m13 15-1 1"/></svg>
+                <span>Commercial Site</span>
+              </div>
+            </motion.div>
+
+            <motion.div className="modal-actions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3 }}>
+              <button className="btn btn-primary" onClick={startChatting} disabled={creating} style={{width: '100%'}}>
+                {creating ? 'Connecting...' : 'Message Site Owner'}
+              </button>
+              <button className="btn btn-outline" onClick={onClose} style={{width: '100%'}}>Maybe Later</button>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      );
+    }
+
+
+    // --- Components ---
+
+    function PanoramaViewer({ imageUrl }) {
+      const viewerRef = useRef(null);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        if (!imageUrl || !viewerRef.current) {
+          setLoading(false);
+          return;
+        }
+        
+        // Initialize Pannellum
+        let viewer;
+        
+        // Small delay to ensure container has dimensions
+        setTimeout(() => {
+          if (viewerRef.current) {
+            viewerRef.current.innerHTML = '';
+            viewer = pannellum.viewer(viewerRef.current, {
+              type: 'equirectangular',
+              panorama: imageUrl,
+              autoLoad: true,
+              haov: 360,
+              vaov: 180,
+              showControls: false, // Clean look, interactions only
+              mouseZoom: true,
+              draggable: true
+            });
+            viewer.on('load', () => setLoading(false));
+          }
+        }, 100);
+
+        return () => {
+          if (viewer) viewer.destroy();
+        };
+      }, [imageUrl]);
+
+      return (
+        <div className="panorama-card animate-slide-up">
+          <div className="panorama-aspect">
+            {loading && (
+              <div className="panorama-container skeleton" style={{ zIndex: 5, position: 'absolute' }}></div>
+            )}
+            <div ref={viewerRef} className="panorama-container">
+              {!loading && !imageUrl && (
+                <div style={{color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%'}}>
+                  No Panorama Available
+                </div>
+              )}
+            </div>
+            {imageUrl && (
+              <div className="panorama-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                360&deg; Interactive View
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function PropertyGallery({ mainImage }) {
+      // Mock gallery for demo purposes. In a real app, this would be an array of image URLs from the property.
+      const images = [
+        { id: 1, url: mainImage || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80', label: 'Main' },
+        { id: 2, url: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=400&q=80', label: 'Dining' },
+        { id: 3, url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80', label: 'Kitchen' },
+        { id: 4, url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=400&q=80', label: 'Entrance' }
+      ];
+      const [active, setActive] = useState(images[0].id);
+
+      return (
+        <div className="gallery-wrap animate-fade-in delay-100">
+          {images.map(img => (
+            <div 
+              key={img.id} 
+              className={`gallery-item ${active === img.id ? 'active' : ''}`}
+              onClick={() => setActive(img.id)}
+            >
+              <img src={img.url} alt={img.label} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function PropertySummaryCard({ property }) {
+      const stats = [
+        { label: 'Rent', val: `฿${(property.monthly_rent_thb || 0).toLocaleString()}`, icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /> },
+        { label: 'Area', val: `${property.size_sqm || 0} SQM`, icon: <path d="M3 3h18v18H3z M9 3v18 M15 3v18 M3 9h18 M3 15h18" /> },
+        { label: 'Parking', val: '20 Lots', icon: <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2 M7 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0 M15 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0" /> },
+        { label: 'Availability', val: 'Ready', icon: <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3" /> }
+      ];
+
+      return (
+        <div className="summary-grid">
+          {stats.map((s, i) => (
+            <div key={i} className="stat-card">
+              <div className="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  {s.icon}
+                </svg>
+              </div>
+              <div>
+                <div className="stat-val">{s.val}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function PropertyAmenities() {
+      const amenities = ['Parking', 'Air Conditioning', 'CCTV', 'Security', 'WiFi', 'Restroom', 'Loading Area', 'Elevator'];
+      return (
+        <div className="amenities-sec">
+          <h3>Amenities</h3>
+          <div className="amenities-list">
+            {amenities.map(a => (
+              <div key={a} className="amenity-chip">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                {a}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function PropertyActions({ onConnect }) {
+      return (
+        <div className="action-buttons">
+          <button className="btn btn-primary" onClick={onConnect} style={{ width: '100%' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            Connect to Owner
+          </button>
+        </div>
+      );
+    }
+
+    function PropertyInformationCard({ property, onConnect }) {
+      return (
+        <div className="info-card animate-slide-up delay-100">
+          <div className="info-header">
+            <h2 className="info-title">{property.property_name || 'Commercial Space'}</h2>
+            <div className="status-badge">AVAILABLE</div>
+          </div>
+          
+          <div className="info-grid">
+            <div>
+              <div className="info-item-label">Property Type</div>
+              <div className="info-item-val">{property.property_type || 'Retail Unit'}</div>
+            </div>
+            <div>
+              <div className="info-item-label">Monthly Rent</div>
+              <div className="info-item-val">฿{(property.monthly_rent_thb || 0).toLocaleString()} / month</div>
+            </div>
+            <div>
+              <div className="info-item-label">Area</div>
+              <div className="info-item-val">{property.size_sqm || 'N/A'} SQM</div>
+            </div>
+            <div>
+              <div className="info-item-label">Owner Contact</div>
+              <div className="info-item-val">{property.owner_contact || 'Contact Agent'}</div>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="info-item-label">Address</div>
+              <div className="info-item-val">{property.address || 'Address not specified'}</div>
+            </div>
+          </div>
+
+          <div className="description-sec">
+            <h3>Description</h3>
+            <p>
+              This premium commercial space is situated in a high-foot-traffic area, ideal for retail, F&B, or showroom usage. 
+              The layout is highly adaptable with excellent frontage and visibility.
+            </p>
+            <p>
+              Recently renovated, the space features modern infrastructure, high ceilings, and pre-installed provisions for HVAC and heavy electrical loads, minimizing your setup costs. 
+              {property.admin_notes ? ` Additional notes: ${property.admin_notes}` : ''}
+            </p>
+          </div>
+
+          <PropertyAmenities />
+          <PropertySummaryCard property={property} />
+          <PropertyActions onConnect={onConnect} />
+        </div>
+      );
+    }
+
+    function RoomInfoPage() {
+      const [property, setProperty] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [owner, setOwner] = useState(null);
+      const [currentUser, setCurrentUser] = useState(null);
+      useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(r => {
+              if (!r.ok) throw new Error('Not auth');
+              return r.json();
+            })
+            .then(data => { if(data.id) setCurrentUser(data); })
+            .catch(e => { console.log('User not logged in'); });
+        }
+      }, []);
+      const [showModal, setShowModal] = useState(false);
+
+      useEffect(() => {
+        // Extract property ID from URL: /room/{id}
+        const parts = window.location.pathname.split('/');
+        const propId = parts[parts.length - 1];
+        
+        if (!propId) {
+          setError("No property ID specified in URL");
+          setLoading(false);
+          return;
+        }
+
+        fetch(`/api/public/properties/${propId}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Property not found");
+            return res.json();
+          })
+          .then(data => {
+            setProperty(data);
+            // Also fetch owner
+            fetch(`/api/public/properties/${propId}/owner`)
+              .then(r => r.json())
+              .then(ownerData => {
+                if(ownerData.id) setOwner(ownerData);
+                setLoading(false);
+              })
+              .catch(() => setLoading(false));
+          })
+          .catch(err => {
+            setError(err.message);
+            setLoading(false);
+          });
+      }, []);
+
+      return (
+        <div>
+          <TopNav />
+          <div className="container">
+            <div style={{marginBottom: '24px'}}>
+              <a href="javascript:void(0)" onClick={() => window.history.length > 1 ? window.history.back() : window.location.href='/reports'} className="btn-back">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back to Recommendations
+              </a>
+            </div>
+            <header className="header animate-fade-in">
+            <h1>Room Information</h1>
+          </header>
+          
+          {loading && (
+            <div className="layout-grid">
+              <div className="left-column">
+                <div className="panorama-card skeleton" style={{ height: '400px' }}></div>
+              </div>
+              <div className="right-column info-card skeleton" style={{ height: '600px' }}></div>
+            </div>
+          )}
+          
+          {error && (
+            <div className="info-card" style={{ textAlign: 'center', color: '#ef4444' }}>
+              <h3>Error</h3>
+              <p>{error}</p>
+            </div>
+          )}
+          
+          {!loading && !error && property && (
+            <div className="layout-grid">
+              <div className="left-column">
+                <PanoramaViewer imageUrl={property.main_photo} />
+                <PropertyGallery mainImage={property.main_photo} />
+              </div>
+              <div className="right-column">
+                <PropertyInformationCard property={property} onConnect={() => setShowModal(true)} />
+              </div>
+            </div>
+          )}
+          
+          <AnimatePresence>{showModal && owner && (
+            <MatchModal owner={owner} user={currentUser} propertyId={property.id} onClose={() => setShowModal(false)} />
+          )}</AnimatePresence>
+        </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<RoomInfoPage />);
+  </script>
+</body>
+</html>

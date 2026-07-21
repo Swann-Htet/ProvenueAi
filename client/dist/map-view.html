@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Map View — AI Location Analysis | ProvenueAI</title>
+  <meta name="description" content="AI analyzed all candidate locations and ranked the best opportunities for your business." />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FDF9F3; --white: #FFFFFF; --orange: #F28C6E; --orange-dk: #E07555;
+      --green: #9AC46D; --green-dk: #7AAA4D; --navy: #24324B; --navy-lt: #4A5E78;
+      --muted: #8A96A8; --border: #E8E8E8; --border-lt: #F0EDE8;
+      --shadow: 0 2px 12px rgba(36,50,75,.07); --shadow-md: 0 4px 24px rgba(36,50,75,.10);
+      --r: 18px;
+    }
+    html, body { height: 100%; background: var(--bg); font-family: 'Montserrat', sans-serif; color: var(--navy); font-size: 14px; line-height: 1.5; }
+
+    /* TOP NAV */
+    .topnav { position: sticky; top: 0; z-index: 500; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 60px; box-shadow: 0 1px 6px rgba(36,50,75,.05); }
+    .topnav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 18px; font-weight: 800; color: var(--navy); letter-spacing: -.3px; }
+    .topnav-logo img { width: 32px; height: 32px; object-fit: contain; }
+    .topnav-logo span { color: var(--orange); }
+    .topnav-links { display: flex; align-items: center; gap: 4px; }
+    .topnav-links a { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--navy-lt); text-decoration: none; transition: background .15s, color .15s; }
+    .topnav-links a:hover { background: var(--bg); color: var(--navy); }
+    .topnav-links a.active { background: #FEF0EB; color: var(--orange); border: 1px solid #F8D4C7; }
+    .topnav-links a.btn-outline { border: 1.5px solid var(--border); }
+    .topnav-links a.btn-outline:hover { border-color: var(--navy-lt); }
+
+    /* PAGE */
+    .page-wrap { max-width: 1380px; margin: 0 auto; padding: 24px 28px 48px; }
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 16px; }
+    .page-header-left { display: flex; flex-direction: column; gap: 10px; }
+    .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); color: var(--navy-lt); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; transition: border-color .15s, color .15s; width: fit-content; }
+    .btn-back:hover { border-color: var(--navy-lt); color: var(--navy); }
+    .page-title { font-size: 26px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
+    .page-subtitle { font-size: 13px; color: var(--muted); font-weight: 500; margin-top: 3px; }
+    .page-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); color: var(--navy); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: border-color .15s, background .15s; }
+    .btn-secondary:hover { border-color: var(--navy-lt); background: var(--bg); }
+    .btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 10px; border: none; background: var(--orange); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: background .15s; }
+    .btn-primary:hover { background: var(--orange-dk); }
+
+    /* 3-col grid */
+    .main-grid { display: grid; grid-template-columns: 240px 1fr 220px; gap: 16px; align-items: start; }
+
+    /* card */
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); }
+    .card-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 14px; }
+
+    /* left panel */
+    .left-panel { display: flex; flex-direction: column; gap: 14px; }
+    .rec-card { padding: 18px; }
+    .rec-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+    .rec-location-name { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 12px; line-height: 1.2; }
+    .rec-score-row { display: flex; align-items: center; justify-content: space-between; background: #F7F4EF; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
+    .rec-score-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .rec-score-val { font-size: 22px; font-weight: 900; color: var(--orange); line-height: 1; }
+    .rec-score-val span { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .rec-metrics { display: flex; flex-direction: column; gap: 9px; margin-bottom: 18px; }
+    .rec-metric { display: flex; align-items: center; justify-content: space-between; }
+    .rec-metric-name { font-size: 11px; font-weight: 600; color: var(--navy-lt); }
+    .rec-metric-val { font-size: 11px; font-weight: 700; }
+    .val-green { color: var(--green-dk); }
+    .val-orange { color: var(--orange); }
+    .val-muted { color: var(--navy-lt); }
+    .val-blue { color: #5BA4D8; }
+    .stars { color: #F5A623; letter-spacing: -1px; font-size: 12px; }
+    .btn-view-analysis { width: 100%; padding: 10px 0; border-radius: 10px; border: 1.5px solid var(--orange); background: #FEF0EB; color: var(--orange); font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background .15s, color .15s; }
+    .btn-view-analysis:hover { background: var(--orange); color: #fff; }
+    .legend-card { padding: 16px 18px; }
+    .legend-items { display: flex; flex-direction: column; gap: 9px; }
+    .legend-item { display: flex; align-items: center; gap: 9px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .ld-green { background: #5DBD6A; }
+    .ld-orange { background: #F28C6E; }
+    .ld-blue { background: #5BA4D8; }
+    .ld-gray { background: #BEC5CE; }
+    .legend-text { font-size: 11px; font-weight: 600; color: var(--navy-lt); }
+
+    /* map */
+    .map-wrap { position: relative; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    #map { width: 100%; height: 480px; background: #EEE8E0; }
+    .leaflet-control-attribution { font-size: 9px !important; }
+    .leaflet-control-zoom { display: none !important; }
+    .map-controls { position: absolute; bottom: 20px; right: 16px; z-index: 400; display: flex; flex-direction: column; gap: 6px; }
+    .map-ctrl-btn { width: 34px; height: 34px; background: var(--white); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--navy-lt); transition: background .12s, color .12s; }
+    .map-ctrl-btn:hover { background: var(--bg); color: var(--navy); }
+    .leaflet-container { font-family: 'Montserrat', sans-serif !important; }
+    .leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: 0 4px 20px rgba(36,50,75,.15) !important; border: 1px solid var(--border) !important; }
+    .leaflet-popup-content { margin: 12px 16px !important; font-family: 'Montserrat', sans-serif !important; }
+    .pv-popup-name { font-size: 14px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .pv-popup-district { font-size: 11px; color: var(--muted); }
+    .pv-popup-score { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+
+    /* right filter */
+    .filter-card { padding: 18px; }
+    .filter-section { margin-bottom: 18px; }
+    .filter-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; display: block; }
+    .filter-select { appearance: none; width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 30px 8px 11px; font-size: 12px; font-weight: 600; color: var(--navy); font-family: 'Montserrat', sans-serif; cursor: pointer; transition: border-color .15s; }
+    .filter-select:focus { outline: none; border-color: var(--orange); }
+    .filter-range { width: 100%; accent-color: var(--orange); cursor: pointer; }
+    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 4px; }
+    .filter-divider { height: 1px; background: var(--border-lt); margin: 4px 0 18px; }
+    .checkbox-group { display: flex; flex-direction: column; gap: 9px; margin-bottom: 18px; }
+    .checkbox-item { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+    .checkbox-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--orange); cursor: pointer; flex-shrink: 0; }
+    .checkbox-label { font-size: 12px; font-weight: 600; color: var(--navy-lt); cursor: pointer; }
+    .btn-reset { width: 100%; padding: 9px 0; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: border-color .15s, color .15s; }
+    .btn-reset:hover { border-color: var(--navy-lt); color: var(--navy); }
+
+    /* bottom cards */
+    .bottom-section { margin-top: 20px; }
+    .bottom-title { font-size: 16px; font-weight: 800; color: var(--navy); margin-bottom: 14px; }
+    .loc-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .loc-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); transition: box-shadow .2s, transform .15s; }
+    .loc-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .loc-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .rank-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .rb-1 { background: #5DBD6A; }
+    .rb-2 { background: #F28C6E; }
+    .rb-3 { background: #5BA4D8; }
+    .loc-name { font-size: 15px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+    .loc-district { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+    .loc-score-pill { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
+    .loc-score-num { font-size: 20px; font-weight: 900; line-height: 1; }
+    .sn-1 { color: #5DBD6A; }
+    .sn-2 { color: #F28C6E; }
+    .sn-3 { color: #5BA4D8; }
+    .loc-score-sub { font-size: 10px; font-weight: 600; color: var(--muted); }
+    .loc-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .loc-metric { display: flex; flex-direction: column; gap: 2px; }
+    .loc-metric-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .loc-metric-val { font-size: 11px; font-weight: 700; }
+    .loc-card-footer { border-top: 1px solid var(--border-lt); padding-top: 12px; display: flex; justify-content: flex-end; }
+    .btn-view { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; border: none; background: var(--orange); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: background .15s; }
+    .btn-view:hover { background: var(--orange-dk); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #D8D2C8; border-radius: 4px; }
+
+    @media (max-width: 1100px) { .main-grid { grid-template-columns: 220px 1fr; } .right-panel { display: none; } }
+    @media (max-width: 800px) { .main-grid { grid-template-columns: 1fr; } .loc-cards { grid-template-columns: 1fr; } .page-wrap { padding: 16px 14px 40px; } .topnav { padding: 0 16px; } }
+  </style>
+</head>
+<body>
+
+<header class="topnav">
+  <a href="/" class="topnav-logo">
+    <img src="/logo.png" alt="ProvenueAI" />
+    Provenue<span>AI</span>
+  </a>
+  <nav class="topnav-links">
+    <a href="/">Home</a>
+    <a href="/start-report" class="active">Start a Report</a>
+    <a href="/my-reports">My Reports</a>
+    <a href="/profile" class="btn-outline">User Profile</a>
+    <a href="/sign-out" class="btn-outline">Sign Out</a>
+  </nav>
+</header>
+
+<main class="page-wrap">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <a href="javascript:history.back()" class="btn-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Report
+      </a>
+      <div>
+        <h1 class="page-title">Map View</h1>
+        <p class="page-subtitle">AI analyzed all candidate locations and ranked the best opportunities for your business.</p>
+      </div>
+    </div>
+    <div class="page-header-right">
+      <button class="btn-secondary" onclick="handleExportPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export PDF
+      </button>
+      <button class="btn-primary" onclick="location.href='/start-report'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Start New Report
+      </button>
+    </div>
+  </div>
+
+  <!-- 3-column grid -->
+  <div class="main-grid">
+
+    <!-- LEFT -->
+    <aside class="left-panel">
+      <div class="card rec-card">
+        <div class="card-title">AI Recommendation</div>
+        <div class="rec-label">Best Location</div>
+        <div class="rec-location-name">Siam Square</div>
+        <div class="rec-score-row">
+          <div class="rec-score-label">Score</div>
+          <div class="rec-score-val">96 <span>/ 100</span></div>
+        </div>
+        <div class="rec-metrics">
+          <div class="rec-metric">
+            <span class="rec-metric-name">Revenue Potential</span>
+            <span class="rec-metric-val"><span class="stars">★★★★★</span></span>
+          </div>
+          <div class="rec-metric">
+            <span class="rec-metric-name">Competition</span>
+            <span class="rec-metric-val val-green">Low</span>
+          </div>
+          <div class="rec-metric">
+            <span class="rec-metric-name">Rent Level</span>
+            <span class="rec-metric-val val-orange">Medium</span>
+          </div>
+          <div class="rec-metric">
+            <span class="rec-metric-name">Expected ROI</span>
+            <span class="rec-metric-val val-muted">18 months</span>
+          </div>
+          <div class="rec-metric">
+            <span class="rec-metric-name">Foot Traffic</span>
+            <span class="rec-metric-val val-green">Very High</span>
+          </div>
+        </div>
+        <button class="btn-view-analysis" onclick="scrollToTop3()">
+          View Full Analysis
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="card legend-card">
+        <div class="card-title">Location Legend</div>
+        <div class="legend-items">
+          <div class="legend-item"><div class="legend-dot ld-green"></div><span class="legend-text">Excellent (Top 3)</span></div>
+          <div class="legend-item"><div class="legend-dot ld-orange"></div><span class="legend-text">Good Opportunity</span></div>
+          <div class="legend-item"><div class="legend-dot ld-blue"></div><span class="legend-text">Average Potential</span></div>
+          <div class="legend-item"><div class="legend-dot ld-gray"></div><span class="legend-text">Not Recommended</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER MAP -->
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div class="map-controls">
+        <button class="map-ctrl-btn" title="Zoom in" onclick="pvMap&&pvMap.zoomIn()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="map-ctrl-btn" title="Zoom out" onclick="pvMap&&pvMap.zoomOut()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="map-ctrl-btn" title="Reset view" onclick="pvMap&&pvMap.setView([13.7463,100.5340],12)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        </button>
+        <button class="map-ctrl-btn" title="Compass">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT FILTERS -->
+    <aside class="card filter-card right-panel">
+      <div class="card-title">Filters</div>
+
+      <div class="filter-section">
+        <label class="filter-label" for="f-radius">Radius</label>
+        <select class="filter-select" id="f-radius">
+          <option value="500">500 m</option>
+          <option value="1000" selected>1 km</option>
+          <option value="2000">2 km</option>
+          <option value="5000">5 km</option>
+          <option value="10000">10 km</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-label" for="f-budget">Budget Range (THB/mo)</label>
+        <input type="range" class="filter-range" id="f-budget" min="20000" max="300000" step="5000" value="150000" oninput="updateBudget(this.value)" />
+        <div class="range-labels">
+          <span>฿20K</span>
+          <span id="budget-val" style="color:var(--navy);font-weight:700">฿150K</span>
+          <span>฿300K</span>
+        </div>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-section">
+        <label class="filter-label" for="f-pop">Population Density</label>
+        <select class="filter-select" id="f-pop">
+          <option value="any" selected>Any</option>
+          <option value="high">High</option>
+          <option value="very_high">Very High</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-label" for="f-traffic">Foot Traffic</label>
+        <select class="filter-select" id="f-traffic">
+          <option value="any" selected>Any</option>
+          <option value="medium">Medium+</option>
+          <option value="high">High</option>
+          <option value="very_high">Very High</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-label" for="f-transit">Nearby Transit</label>
+        <select class="filter-select" id="f-transit">
+          <option value="any" selected>Any</option>
+          <option value="bts">BTS Skytrain</option>
+          <option value="mrt">MRT</option>
+          <option value="both">BTS + MRT</option>
+        </select>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="checkbox-group">
+        <div class="checkbox-item">
+          <input type="checkbox" id="cb-heatmap" checked />
+          <label class="checkbox-label" for="cb-heatmap">Show Heatmap</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="cb-competitors" checked />
+          <label class="checkbox-label" for="cb-competitors">Show Competitors</label>
+        </div>
+      </div>
+
+      <button class="btn-reset" onclick="resetFilters()">Reset Filters</button>
+    </aside>
+
+  </div>
+
+  <!-- Bottom: Top 3 -->
+  <section class="bottom-section" id="top3-section">
+    <h2 class="bottom-title">Top 3 Recommended Locations</h2>
+    <div class="loc-cards">
+
+      <!-- Card 1 -->
+      <article class="loc-card">
+        <div class="loc-card-header">
+          <div class="rank-badge rb-1">1</div>
+          <div>
+            <div class="loc-name">Siam Square</div>
+            <div class="loc-district">Pathum Wan, Bangkok</div>
+          </div>
+          <div class="loc-score-pill">
+            <div class="loc-score-num sn-1">96</div>
+            <div class="loc-score-sub">/ 100</div>
+          </div>
+        </div>
+        <div class="loc-metrics">
+          <div class="loc-metric"><div class="loc-metric-label">Revenue</div><div class="loc-metric-val"><span class="stars">★★★★★</span></div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Competition</div><div class="loc-metric-val val-green">Low</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Rent</div><div class="loc-metric-val val-orange">Medium</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Population</div><div class="loc-metric-val val-green">Very High</div></div>
+        </div>
+        <div class="loc-card-footer">
+          <button class="btn-view" onclick="flyToRank(1)">View Analysis <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="loc-card">
+        <div class="loc-card-header">
+          <div class="rank-badge rb-2">2</div>
+          <div>
+            <div class="loc-name">Asoke</div>
+            <div class="loc-district">Khlong Toei, Bangkok</div>
+          </div>
+          <div class="loc-score-pill">
+            <div class="loc-score-num sn-2">94</div>
+            <div class="loc-score-sub">/ 100</div>
+          </div>
+        </div>
+        <div class="loc-metrics">
+          <div class="loc-metric"><div class="loc-metric-label">Revenue</div><div class="loc-metric-val"><span class="stars">★★★★★</span></div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Competition</div><div class="loc-metric-val val-green">Low</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Rent</div><div class="loc-metric-val val-orange">Medium</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Population</div><div class="loc-metric-val val-green">Very High</div></div>
+        </div>
+        <div class="loc-card-footer">
+          <button class="btn-view" onclick="flyToRank(2)">View Analysis <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="loc-card">
+        <div class="loc-card-header">
+          <div class="rank-badge rb-3">3</div>
+          <div>
+            <div class="loc-name">Ari</div>
+            <div class="loc-district">Phaya Thai, Bangkok</div>
+          </div>
+          <div class="loc-score-pill">
+            <div class="loc-score-num sn-3">92</div>
+            <div class="loc-score-sub">/ 100</div>
+          </div>
+        </div>
+        <div class="loc-metrics">
+          <div class="loc-metric"><div class="loc-metric-label">Revenue</div><div class="loc-metric-val"><span class="stars">★★★★☆</span></div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Competition</div><div class="loc-metric-val val-green">Low</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Rent</div><div class="loc-metric-val val-orange">Medium</div></div>
+          <div class="loc-metric"><div class="loc-metric-label">Population</div><div class="loc-metric-val val-blue">High</div></div>
+        </div>
+        <div class="loc-card-footer">
+          <button class="btn-view" onclick="flyToRank(3)">View Analysis <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+var pvMap = null, pvMarkers = [];
+
+var LOCS = [
+  { id:1, name:'Siam Square',  district:'Pathum Wan, Bangkok',  lat:13.7463, lng:100.5340, rank:1, score:96 },
+  { id:2, name:'Asoke',        district:'Khlong Toei, Bangkok', lat:13.7369, lng:100.5608, rank:2, score:94 },
+  { id:3, name:'Ari',          district:'Phaya Thai, Bangkok',  lat:13.7748, lng:100.5468, rank:3, score:92 },
+  { id:4, name:'Thonglor',     district:'Watthana, Bangkok',    lat:13.7253, lng:100.5839,         score:78 },
+  { id:5, name:'On Nut',       district:'Suan Luang, Bangkok',  lat:13.7004, lng:100.5994,         score:71 },
+  { id:6, name:'Lat Phrao',    district:'Lat Phrao, Bangkok',   lat:13.8103, lng:100.5704,         score:65 },
+  { id:7, name:'Bang Na',      district:'Bang Na, Bangkok',     lat:13.6667, lng:100.6013,         score:58 },
+  { id:8, name:'Min Buri',     district:'Min Buri, Bangkok',    lat:13.8017, lng:100.7430,         score:44 },
+  { id:9, name:'Bang Kae',     district:'Bang Kae, Bangkok',    lat:13.7094, lng:100.4237,         score:40 }
+];
+
+var RANK_COLORS = { 1:'#5DBD6A', 2:'#F28C6E', 3:'#5BA4D8' };
+
+function rankIcon(rank) {
+  var c = RANK_COLORS[rank];
+  return L.divIcon({
+    className:'',
+    html:'<div style="width:38px;height:38px;background:'+c+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.22);border:2.5px solid #fff"><span style="transform:rotate(45deg);font-size:14px;font-weight:900;color:#fff;font-family:Montserrat,sans-serif">'+rank+'</span></div>',
+    iconSize:[38,38], iconAnchor:[19,38], popupAnchor:[0,-42]
+  });
+}
+function grayIcon() {
+  return L.divIcon({
+    className:'',
+    html:'<div style="width:16px;height:16px;background:#BEC5CE;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.16)"></div>',
+    iconSize:[16,16], iconAnchor:[8,8], popupAnchor:[0,-10]
+  });
+}
+function popup(loc) {
+  var sc = loc.rank ? '<span style="color:'+RANK_COLORS[loc.rank]+';font-weight:900">'+loc.score+'</span>' : '<span>'+loc.score+'</span>';
+  var badge = loc.rank ? '<div style="margin-top:8px"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:'+RANK_COLORS[loc.rank]+'22;color:'+RANK_COLORS[loc.rank]+'">Rank #'+loc.rank+'</span></div>' : '';
+  return '<div class="pv-popup-name">'+loc.name+'</div>'
+       + '<div class="pv-popup-district">'+loc.district+'</div>'
+       + '<div class="pv-popup-score">Score: '+sc+'/100</div>'
+       + badge;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  pvMap = L.map('map', { center:[13.7463,100.5340], zoom:12, zoomControl:false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains:'abcd', maxZoom:20
+  }).addTo(pvMap);
+
+  LOCS.forEach(function(loc) {
+    var icon = loc.rank ? rankIcon(loc.rank) : grayIcon();
+    var m = L.marker([loc.lat,loc.lng], {icon:icon})
+      .bindPopup(popup(loc), {maxWidth:200, closeButton:false});
+    m.on('mouseover', function(){ this.openPopup(); });
+    if (!loc.rank) m.on('mouseout', function(){ this.closePopup(); });
+    m.addTo(pvMap);
+    pvMarkers.push({m:m, loc:loc});
+  });
+
+  pvMap.fitBounds(LOCS.map(function(l){return[l.lat,l.lng];}), {padding:[40,40]});
+  setTimeout(function(){ pvMap.invalidateSize(); }, 150);
+});
+
+function flyToRank(rank) {
+  var loc = LOCS.find(function(l){return l.rank===rank;});
+  if (!loc||!pvMap) return;
+  pvMap.flyTo([loc.lat,loc.lng], 15, {duration:1.2});
+  pvMarkers.forEach(function(x){if(x.loc.id===loc.id) x.m.openPopup();});
+}
+function scrollToTop3() {
+  document.getElementById('top3-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function updateBudget(v) {
+  document.getElementById('budget-val').textContent = '฿'+Math.round(v/1000)+'K';
+}
+function resetFilters() {
+  document.getElementById('f-radius').value='1000';
+  document.getElementById('f-budget').value='150000';
+  document.getElementById('budget-val').textContent='฿150K';
+  document.getElementById('f-pop').value='any';
+  document.getElementById('f-traffic').value='any';
+  document.getElementById('f-transit').value='any';
+  document.getElementById('cb-heatmap').checked=true;
+  document.getElementById('cb-competitors').checked=true;
+}
+function handleExportPDF() {
+  alert('Generating PDF report with map, scores, and financial projections...');
+}
+</script>
+</body>
+</html>
