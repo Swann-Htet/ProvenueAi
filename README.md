@@ -29,12 +29,12 @@ User  → 18-field Business Profile → NVIDIA NIM Report Engine
 
 | Feature | Description |
 |---|---|
-| 🏠 **Property Sourcing Agent** | Admin types an area; AI scrapes & structures candidate listings from public sources |
-| 🎙️ **Voice Interview Agent** | Conversational STT-driven onboarding fills all 18 business profile fields |
-| 📊 **Report Generation (NVIDIA NIM)** | Site scoring across 6 dimensions, financial forecast (3 scenarios), menu pricing matrix |
-| 🗺️ **Post-Report Insight Agent** | Natural-language map Q&A — ask a question, watch the map update live |
-| 🔐 **JWT Auth** | Separate Admin and User roles with secure session management |
-| 💬 **Real-time Messaging** | WebSocket-powered chat between admin and users |
+| **Property Sourcing Agent** | Admin types an area; AI scrapes & structures candidate listings from public sources |
+| **Voice Interview Agent** | Conversational STT-driven onboarding fills all 18 business profile fields |
+| **Report Generation (NVIDIA NIM)** | Site scoring across 6 dimensions, financial forecast (3 scenarios), menu pricing matrix |
+| **Post-Report Insight Agent** | Natural-language map Q&A — ask a question, watch the map update live |
+| **JWT Auth** | Separate Admin and User roles with secure session management |
+| **Real-time Messaging** | WebSocket-powered chat between admin and users |
 
 ---
 
