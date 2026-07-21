@@ -3,6 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
+# Docker
+.env
+!.env.example
+
 # Build outputs
 client/dist/assets/*.js
 client/dist/assets/*.css

@@ -1,0 +1,83 @@
+services:
+
+  # ── MySQL Database ─────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: provenueai_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: provenueai
+      MYSQL_USER: ${MYSQL_USER:-provenue}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-provenue_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - provenueai_net
+
+  # ── Backend API (Node.js / Express) ───────────────────────────────────────
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: provenueai_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 5178
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-provenue}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-provenue_pass}
+      MYSQL_DATABASE: provenueai
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_in_production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@provenue.ai}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Provenue@2026}
+      NIM_API_KEY: ${NIM_API_KEY:-}
+      NIM_BASE_URL: ${NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NIM_MODEL: ${NIM_MODEL:-meta/llama-3.1-8b-instruct}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      LIVE_GEO: ${LIVE_GEO:-0}
+    volumes:
+      # Persist the JSON fallback store across restarts
+      - server_data:/app/data
+    expose:
+      - "5178"
+    networks:
+      - provenueai_net
+
+  # ── Frontend (Nginx serving static HTML) ─────────────────────────────────
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: provenueai_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - provenueai_net
+
+volumes:
+  mysql_data:
+    name: provenueai_mysql_data
+  server_data:
+    name: provenueai_server_data
+
+networks:
+  provenueai_net:
+    name: provenueai_network
+    driver: bridge
